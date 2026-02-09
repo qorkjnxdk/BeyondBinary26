@@ -149,15 +149,23 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center text-gray-900 mb-6">
-          Sign Up
-        </h1>
+    <div className="min-h-screen gradient-soft py-12 px-4">
+      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-soft p-8 md:p-10 border border-gray-100">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2">
+            Join Beyond Binary
+          </h1>
+          <p className="text-gray-600">Create your account and start connecting</p>
+        </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg mb-6 shadow-sm">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              {error}
+            </div>
           </div>
         )}
 
@@ -175,7 +183,7 @@ export default function SignupPage() {
                 type="text"
                 value={singpassData.nric}
                 onChange={(e) => setSingpassData({ ...singpassData, nric: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
                 placeholder="S1234567A"
               />
             </div>
@@ -187,7 +195,7 @@ export default function SignupPage() {
                 type="text"
                 value={singpassData.name}
                 onChange={(e) => setSingpassData({ ...singpassData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               />
             </div>
             <div>
@@ -197,7 +205,7 @@ export default function SignupPage() {
               <select
                 value={singpassData.gender}
                 onChange={(e) => setSingpassData({ ...singpassData, gender: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
                 <option value="F">Female</option>
                 <option value="M">Male</option>
@@ -205,7 +213,7 @@ export default function SignupPage() {
             </div>
             <button
               onClick={handleSingpassVerify}
-              className="w-full bg-pink-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-pink-700"
+              className="btn-primary w-full"
             >
               Verify & Continue
             </button>
@@ -221,7 +229,7 @@ export default function SignupPage() {
               <select
                 value={profile.age}
                 onChange={(e) => setProfile({ ...profile, age: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
                 <option value="">Select age</option>
                 {Array.from({ length: 83 }, (_, i) => i + 18).map(age => (
@@ -235,7 +243,7 @@ export default function SignupPage() {
               <select
                 value={profile.maritalStatus}
                 onChange={(e) => setProfile({ ...profile, maritalStatus: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
                 <option value="">Select status</option>
                 {maritalStatuses.map(status => (
@@ -249,7 +257,7 @@ export default function SignupPage() {
               <select
                 value={profile.employment}
                 onChange={(e) => setProfile({ ...profile, employment: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
                 <option value="">Select employment</option>
                 {employmentTypes.map(type => (
@@ -304,7 +312,7 @@ export default function SignupPage() {
               <select
                 value={profile.location}
                 onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
                 <option value="">Select district</option>
                 {districts.map(district => (
@@ -318,7 +326,7 @@ export default function SignupPage() {
               <select
                 value={profile.hasBaby}
                 onChange={(e) => setProfile({ ...profile, hasBaby: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
                 <option value="">Select</option>
                 <option value="Yes">Yes</option>
@@ -332,7 +340,7 @@ export default function SignupPage() {
               <select
                 value={profile.careerField}
                 onChange={(e) => setProfile({ ...profile, careerField: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
                 <option value="">Select field</option>
                 {careerFields.map(field => (
@@ -354,13 +362,13 @@ export default function SignupPage() {
             <div className="flex gap-4">
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg font-semibold hover:bg-gray-300"
+                className="btn-secondary flex-1"
               >
                 Back
               </button>
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 bg-pink-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-pink-700"
+                className="btn-primary flex-1"
               >
                 Next: Privacy Settings
               </button>
@@ -384,7 +392,7 @@ export default function SignupPage() {
                 <select
                   value={privacy[field] || 'no_one_can_see'}
                   onChange={(e) => setPrivacy({ ...privacy, [field]: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
                 >
                   <option value="anonymous_can_see">Anonymous can see</option>
                   <option value="match_can_see">Match can see</option>
@@ -396,13 +404,13 @@ export default function SignupPage() {
             <div className="flex gap-4">
               <button
                 onClick={() => setStep(2)}
-                className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg font-semibold hover:bg-gray-300"
+                className="btn-secondary flex-1"
               >
                 Back
               </button>
               <button
                 onClick={() => setStep(4)}
-                className="flex-1 bg-pink-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-pink-700"
+                className="btn-primary flex-1"
               >
                 Next: Create Account
               </button>
@@ -421,7 +429,7 @@ export default function SignupPage() {
                 value={credentials.email}
                 onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               />
             </div>
 
@@ -434,7 +442,7 @@ export default function SignupPage() {
                 value={credentials.password}
                 onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               />
             </div>
 
@@ -445,23 +453,33 @@ export default function SignupPage() {
                 value={credentials.confirmPassword}
                 onChange={(e) => setCredentials({ ...credentials, confirmPassword: e.target.value })}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               />
             </div>
 
             <div className="flex gap-4">
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg font-semibold hover:bg-gray-300"
+                className="btn-secondary flex-1"
               >
                 Back
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex-1 bg-pink-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-pink-700 disabled:opacity-50"
+                className="btn-primary flex-1 disabled:opacity-50"
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creating Account...
+                  </span>
+                ) : (
+                  'Create Account'
+                )}
               </button>
             </div>
 

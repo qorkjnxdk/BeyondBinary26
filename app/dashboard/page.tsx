@@ -55,8 +55,11 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center gradient-soft">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-200 border-t-primary-600 mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading your space...</p>
+        </div>
       </div>
     );
   }
@@ -96,30 +99,40 @@ export default function DashboardPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-gray-50">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-pink-600">Beyond Binary</h1>
-          <div className="flex items-center gap-4">
+        <header className="bg-white shadow-md border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-lg">
+              {user?.real_name?.charAt(0) || 'B'}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
+                Beyond Binary
+              </h1>
+              <p className="text-xs text-gray-500">Welcome back, {user?.real_name}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setShowFriends(!showFriends)}
-              className="px-4 py-2 bg-pink-100 text-pink-700 rounded-lg hover:bg-pink-200"
+              className="px-5 py-2.5 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center gap-2"
             >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
               Friends
             </button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">{user?.real_name}</span>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('token');
-                  sessionStorage.removeItem('token');
-                  router.push('/');
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
-              >
-                Logout
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                localStorage.removeItem('token');
+                sessionStorage.removeItem('token');
+                router.push('/');
+              }}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 text-sm font-medium transition-all"
+            >
+              Logout
+            </button>
           </div>
         </header>
 

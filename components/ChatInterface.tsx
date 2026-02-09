@@ -197,59 +197,89 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   const otherUserName = session.otherRandomName || 'Unknown';
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <header className="bg-white shadow-md border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => onChatEnd()}
-            className="text-gray-600 hover:text-gray-800"
+            className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100 transition-all"
           >
-            ← Back
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white font-bold">
+            {otherUserName.charAt(0)}
+          </div>
           <div>
-            <h2 className="font-semibold">{otherUserName}</h2>
+            <h2 className="font-bold text-gray-900 text-lg">{otherUserName}</h2>
             {minimumTimeMet ? (
-              <span className="text-sm text-gray-500">Minimum time reached</span>
+              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                Minimum time reached
+              </span>
             ) : (
-              <span className="text-sm text-gray-500">Time remaining: {formatTime(timeRemaining)}</span>
+              <span className="text-xs text-gray-500 font-medium">Time remaining: <span className="text-primary-600 font-bold">{formatTime(timeRemaining)}</span></span>
             )}
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="px-3 py-1 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100">
+          <button className="px-4 py-2 text-sm bg-red-50 text-red-700 rounded-xl hover:bg-red-100 font-medium transition-all border border-red-200">
             Report
           </button>
-          <button className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+          <button className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium transition-all">
             Block
           </button>
         </div>
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+        {messages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-200 flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <p className="text-gray-500">Start the conversation...</p>
+            </div>
+          </div>
+        )}
         {messages.map((message) => {
           const isMine = message.sender_id === user.user_id;
           return (
             <div
               key={message.message_id}
-              className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${isMine ? 'justify-end' : 'justify-start'} items-end gap-2`}
             >
+              {!isMine && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-300 to-accent-300 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  {otherUserName.charAt(0)}
+                </div>
+              )}
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                className={`max-w-xs lg:max-w-md px-5 py-3 rounded-2xl shadow-sm ${
                   isMine
-                    ? 'bg-pink-600 text-white'
-                    : 'bg-white text-gray-900 border border-gray-200'
+                    ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-br-md'
+                    : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
                 }`}
               >
-                <div className="text-sm font-medium mb-1">
-                  {isMine ? session.myRandomName : otherUserName}
-                </div>
-                <div>{message.message_text}</div>
-                <div className={`text-xs mt-1 ${isMine ? 'text-pink-100' : 'text-gray-500'}`}>
+                {!isMine && (
+                  <div className="text-xs font-bold mb-1 text-gray-600">{otherUserName}</div>
+                )}
+                <div className={`${isMine ? 'text-white' : 'text-gray-900'} leading-relaxed`}>{message.message_text}</div>
+                <div className={`text-xs mt-2 ${isMine ? 'text-primary-100' : 'text-gray-500'}`}>
                   {format(new Date(message.sent_at), 'HH:mm')}
                 </div>
               </div>
+              {isMine && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  {session.myRandomName.charAt(0)}
+                </div>
+              )}
             </div>
           );
         })}
@@ -257,90 +287,96 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-4">
+      <div className="bg-white border-t border-gray-100 p-6 shadow-lg">
         {showContinuePrompt && (
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="mb-2 font-medium">Continue chatting?</p>
-            <div className="flex gap-2">
+          <div className="mb-4 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl shadow-sm">
+            <p className="mb-3 font-bold text-gray-900">Continue chatting?</p>
+            <div className="flex gap-3">
               <button
                 onClick={() => handleContinueChat(true)}
-                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
               >
-                Yes
+                Yes, Continue
               </button>
               <button
                 onClick={() => handleContinueChat(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all"
               >
-                No
+                End Chat
               </button>
             </div>
           </div>
         )}
 
         {earlyExitApproval?.waiting && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm">Request sent. Waiting for approval...</p>
+          <div className="mb-4 p-5 bg-blue-50 border-2 border-blue-300 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <p className="text-sm font-medium text-blue-900">Request sent. Waiting for approval...</p>
+            </div>
           </div>
         )}
 
         {earlyExitApproval && !earlyExitApproval.waiting && (
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="mb-2 font-medium">
+          <div className="mb-4 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl">
+            <p className="mb-3 font-bold text-gray-900">
               {otherUserName} wants to leave early. Approve?
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => handleEarlyExitApproval(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="flex-1 px-5 py-2.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all shadow-md"
               >
-                Yes
+                Approve
               </button>
               <button
                 onClick={() => handleEarlyExitApproval(false)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="flex-1 px-5 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all shadow-md"
               >
-                No
+                Deny
               </button>
             </div>
           </div>
         )}
 
         {showFriendPrompt && (
-          <div className="mb-4 p-4 bg-pink-50 border border-pink-200 rounded-lg">
-            <p className="mb-2 font-medium">Would you like to add {otherUserName} as a friend?</p>
-            <div className="flex gap-2">
+          <div className="mb-4 p-5 bg-gradient-to-r from-primary-50 to-accent-50 border-2 border-primary-300 rounded-2xl">
+            <p className="mb-3 font-bold text-gray-900">Would you like to add {otherUserName} as a friend?</p>
+            <div className="flex gap-3">
               <button
                 onClick={() => handleFriendPrompt(true)}
-                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
               >
-                Yes
+                Yes, Add Friend
               </button>
               <button
                 onClick={() => handleFriendPrompt(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all"
               >
-                No
+                No Thanks
               </button>
             </div>
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <input
             type="text"
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+            className="flex-1 px-5 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900 placeholder-gray-400"
             disabled={showContinuePrompt || showFriendPrompt}
           />
           <button
             onClick={sendMessage}
             disabled={!messageText.trim() || showContinuePrompt || showFriendPrompt}
-            className="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
             Send
           </button>
         </div>
@@ -349,7 +385,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           <button
             onClick={handleEarlyExit}
             disabled={earlyExitRequested}
-            className="mt-2 w-full px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 disabled:opacity-50"
+            className="mt-3 w-full px-4 py-2.5 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 disabled:opacity-50 font-medium border-2 border-red-200 transition-all"
           >
             Leave Early
           </button>
