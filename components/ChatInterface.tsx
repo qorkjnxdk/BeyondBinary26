@@ -18,6 +18,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   const [showFriendPrompt, setShowFriendPrompt] = useState(false);
   const [earlyExitRequested, setEarlyExitRequested] = useState(false);
   const [earlyExitApproval, setEarlyExitApproval] = useState<any>(null);
+  const [chatContinued, setChatContinued] = useState(false); // Track if user chose to continue
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -97,11 +98,42 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
     }
   };
 
-  const handleContinueChat = async (continueChat: boolean) => {
-    if (!continueChat) {
+  const handleContinueChat = async (action: 'continue' | 'add-friend' | 'end') => {
+    if (action === 'end') {
       await endChat(false);
-    } else {
+    } else if (action === 'add-friend') {
+      // Send friend request and end chat
+      const otherUserId = session.user_a_id === user.user_id ? session.user_b_id : session.user_a_id;
+      
+      try {
+        const response = await fetch('/api/friend-requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`,
+          },
+          body: JSON.stringify({
+            receiverId: otherUserId,
+            sessionId: session.session_id,
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          alert(data.error || 'Failed to send friend request');
+          return;
+        }
+
+        // End the chat after sending friend request
+        await endChat(false);
+      } catch (error) {
+        console.error('Error sending friend request:', error);
+        alert('An error occurred while sending friend request');
+      }
+    } else if (action === 'continue') {
       setShowContinuePrompt(false);
+      setChatContinued(true);
       // Mark minimum time as met
       await fetch('/api/chat', {
         method: 'PATCH',
@@ -114,6 +146,38 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           action: 'mark-minimum-time',
         }),
       });
+    }
+  };
+
+  const handleAddFriend = async () => {
+    // Send friend request to the other user
+    const otherUserId = session.user_a_id === user.user_id ? session.user_b_id : session.user_a_id;
+    
+    try {
+      const response = await fetch('/api/friend-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          receiverId: otherUserId,
+          sessionId: session.session_id,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        alert(data.error || 'Failed to send friend request');
+        return;
+      }
+
+      alert(`Friend request sent to ${otherUserName}! They will be notified.`);
+      // Don't end the chat - they can continue talking
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      alert('An error occurred while sending friend request');
     }
   };
 
@@ -184,11 +248,9 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       }),
     });
 
-    if (becameFriends) {
-      setShowFriendPrompt(true);
-    } else {
-      onChatEnd();
-    }
+    // If becoming friends, the API will handle friend request creation
+    // Just end the chat and return to dashboard
+    onChatEnd();
   };
 
   const handleFriendPrompt = async (wantToBeFriends: boolean) => {
@@ -301,19 +363,25 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       <div className="bg-white border-t border-gray-100 p-6 shadow-lg">
         {showContinuePrompt && (
           <div className="mb-4 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl shadow-sm">
-            <p className="mb-3 font-bold text-gray-900">Continue chatting?</p>
-            <div className="flex gap-3">
+            <p className="mb-4 font-bold text-gray-900 text-lg">Minimum time reached. What would you like to do?</p>
+            <div className="flex flex-col gap-3">
               <button
-                onClick={() => handleContinueChat(true)}
-                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                onClick={() => handleContinueChat('continue')}
+                className="w-full px-5 py-3 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
               >
-                Yes, Continue
+                Continue Talking
               </button>
               <button
-                onClick={() => handleContinueChat(false)}
-                className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all"
+                onClick={() => handleContinueChat('add-friend')}
+                className="w-full px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
               >
-                End Chat
+                Add as Friend and End Convo
+              </button>
+              <button
+                onClick={() => handleContinueChat('end')}
+                className="w-full px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all"
+              >
+                End Convo
               </button>
             </div>
           </div>
@@ -391,6 +459,19 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
             Send
           </button>
         </div>
+
+        {/* Add as Friend button - shown after minimum time if chat continued */}
+        {minimumTimeMet && chatContinued && !showFriendPrompt && (
+          <button
+            onClick={handleAddFriend}
+            className="mt-3 w-full px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Add {otherUserName} as Friend
+          </button>
+        )}
 
         {!minimumTimeMet && (
           <button

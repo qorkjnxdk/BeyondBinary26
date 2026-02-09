@@ -84,6 +84,21 @@ export function initDatabase() {
     )
   `);
 
+  // Friend requests table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS friend_requests (
+      request_id TEXT PRIMARY KEY,
+      sender_id TEXT NOT NULL,
+      receiver_id TEXT NOT NULL,
+      session_id TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (sender_id) REFERENCES users(user_id),
+      FOREIGN KEY (receiver_id) REFERENCES users(user_id),
+      FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id)
+    )
+  `);
+
   // Friendships table
   db.exec(`
     CREATE TABLE IF NOT EXISTS friendships (
@@ -163,6 +178,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_chat_sessions_active ON chat_sessions(is_active);
     CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_friendships_user ON friendships(user_a_id, user_b_id);
+    CREATE INDEX IF NOT EXISTS idx_friend_requests_status ON friend_requests(status);
+    CREATE INDEX IF NOT EXISTS idx_friend_requests_receiver ON friend_requests(receiver_id);
     CREATE INDEX IF NOT EXISTS idx_invites_status ON invites(status);
     CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
     CREATE INDEX IF NOT EXISTS idx_online_users_ping ON online_users(last_ping);

@@ -158,10 +158,30 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
     }
   };
 
+  const checkForActiveSession = async () => {
+    try {
+      const response = await fetch('/api/chat', {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      const data = await response.json();
+      if (data.session) {
+        // Someone accepted our invite and a session was created
+        onMatchAccepted(data.session);
+      }
+    } catch (error) {
+      console.error('Error checking for active session:', error);
+    }
+  };
+
   useEffect(() => {
     loadInvites();
-    const interval = setInterval(loadInvites, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
+    checkForActiveSession(); // Check immediately
+    const inviteInterval = setInterval(loadInvites, 2000); // Poll invites every 2 seconds
+    const sessionInterval = setInterval(checkForActiveSession, 2000); // Check for active session every 2 seconds
+    return () => {
+      clearInterval(inviteInterval);
+      clearInterval(sessionInterval);
+    };
   }, []);
 
   return (

@@ -112,8 +112,10 @@ export async function PATCH(request: NextRequest) {
       
       if (becameFriends) {
         const otherUserId = getOtherUserId(session, userId);
+        // Send friend request instead of directly creating friendship
+        const { sendFriendRequest } = await import('@/lib/friendRequests');
         if (!areFriends(userId, otherUserId)) {
-          createFriendship(userId, otherUserId, sessionId);
+          sendFriendRequest(userId, otherUserId, sessionId);
         }
       }
 
