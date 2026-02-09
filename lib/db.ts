@@ -57,10 +57,18 @@ export function initDatabase() {
       minimum_time_met INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1,
       became_friends INTEGER DEFAULT 0,
+      early_exit_requested_by TEXT,
       FOREIGN KEY (user_a_id) REFERENCES users(user_id),
       FOREIGN KEY (user_b_id) REFERENCES users(user_id)
     )
   `);
+  
+  // Add early_exit_requested_by column if it doesn't exist (for existing databases)
+  try {
+    db.exec(`ALTER TABLE chat_sessions ADD COLUMN early_exit_requested_by TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   // Messages table
   db.exec(`

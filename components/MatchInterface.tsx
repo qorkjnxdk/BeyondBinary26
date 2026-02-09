@@ -18,25 +18,51 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
 
   const findMatches = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim()) {
+      alert('Please enter a prompt to find matches.');
+      return;
+    }
     
     setLoading(true);
+    setMatches([]); // Clear previous matches
+    
     try {
+      const token = getToken();
+      if (!token) {
+        alert('You must be logged in to find matches.');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/matches', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`,
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: prompt.trim() }),
       });
 
       const data = await response.json();
-      if (data.matches) {
-        setMatches(data.matches);
+      
+      if (!response.ok) {
+        console.error('Error finding matches:', data.error, data.details);
+        alert(data.error || data.details || 'Failed to find matches. Please try again.');
+        setLoading(false);
+        return;
       }
-    } catch (error) {
+
+      if (data.matches && Array.isArray(data.matches)) {
+        setMatches(data.matches);
+        if (data.matches.length === 0) {
+          console.log('No matches found');
+        }
+      } else {
+        setMatches([]);
+      }
+    } catch (error: any) {
       console.error('Error finding matches:', error);
+      alert(`An error occurred while finding matches: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -94,11 +120,22 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
       });
 
       const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Error accepting invite:', data.error || 'Unknown error');
+        alert(data.error || 'Failed to accept invite. Please try again.');
+        return;
+      }
+
       if (data.session) {
         onMatchAccepted(data.session);
+      } else {
+        console.error('No session returned from accept invite');
+        alert('Failed to start chat. Please try again.');
       }
     } catch (error) {
       console.error('Error accepting invite:', error);
+      alert('An error occurred. Please try again.');
     }
   };
 
@@ -205,6 +242,13 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         )}
 
         {/* Match Results */}
+        {!loading && matches.length === 0 && prompt && (
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 text-center">
+            <p className="text-gray-700 font-medium">
+              No matches online right now. Try again later or adjust your prompt.
+            </p>
+          </div>
+        )}
         {matches.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-6">
@@ -225,14 +269,83 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
                       <div className="text-xs text-gray-500">match</div>
                     </div>
                   </div>
-                  <h4 className="font-bold text-gray-900 text-lg mb-3">{match.randomName}</h4>
-                  <div className="text-sm text-gray-600 space-y-2 mb-5">
-                    {Object.entries(match.visibleProfile).map(([key, value]) => (
-                      <div key={key} className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-700 capitalize">{key}:</span>
-                        <span>{String(value)}</span>
+                  <h4 className="font-bold text-gray-900 text-lg mb-4">{match.randomName}</h4>
+                  <div className="space-y-3 mb-5">
+                    {match.visibleProfile.age && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium">{match.visibleProfile.age} years old</span>
                       </div>
-                    ))}
+                    )}
+                    {match.visibleProfile.location && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-accent-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium">{match.visibleProfile.location}</span>
+                      </div>
+                    )}
+                    {match.visibleProfile.employment && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium">{match.visibleProfile.employment}</span>
+                      </div>
+                    )}
+                    {match.visibleProfile.careerField && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium">{match.visibleProfile.careerField}</span>
+                      </div>
+                    )}
+                    {match.visibleProfile.hobbies && Array.isArray(match.visibleProfile.hobbies) && match.visibleProfile.hobbies.length > 0 && (
+                      <div className="flex items-start gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-gray-700 font-medium mb-1">Interests</div>
+                          <div className="flex flex-wrap gap-1">
+                            {match.visibleProfile.hobbies.slice(0, 3).map((hobby: string, idx: number) => (
+                              <span key={idx} className="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs">
+                                {hobby}
+                              </span>
+                            ))}
+                            {match.visibleProfile.hobbies.length > 3 && (
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs">
+                                +{match.visibleProfile.hobbies.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {match.visibleProfile.hasBaby && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium">{match.visibleProfile.hasBaby}</span>
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => sendInvite(match.userId)}
@@ -246,17 +359,6 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
           </div>
         )}
 
-        {matches.length === 0 && !loading && prompt && (
-          <div className="text-center py-12 bg-white rounded-2xl shadow-soft border border-gray-100">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <p className="text-gray-600 font-medium">No matches online right now</p>
-            <p className="text-sm text-gray-500 mt-2">Try again later or adjust your prompt</p>
-          </div>
-        )}
       </div>
     </div>
   );

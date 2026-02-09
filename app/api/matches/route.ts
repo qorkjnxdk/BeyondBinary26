@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Find matches
+    console.log('[API] Finding matches for user:', userId, 'with prompt:', validated.prompt);
     const matches = findMatches(userId, validated.prompt);
+    console.log('[API] Found matches:', matches.length);
+    console.log('[API] Match user IDs:', matches.map(m => m.user.user_id));
 
     // Format matches with visible profile data
     const formattedMatches = matches.map(match => {
@@ -36,11 +39,13 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    console.log('Formatted matches:', formattedMatches.length);
     return NextResponse.json({
       matches: formattedMatches,
       count: formattedMatches.length,
     });
   } catch (error: any) {
+    console.error('Error in POST /api/matches:', error);
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }

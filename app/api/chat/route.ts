@@ -62,6 +62,11 @@ export async function GET(request: NextRequest) {
     const otherUserId = getOtherUserId(session, userId);
     const randomName = getRandomName(session, userId);
     const otherRandomName = getRandomName(session, otherUserId);
+    
+    // Check for early exit request
+    const sessionData = db.prepare('SELECT early_exit_requested_by FROM chat_sessions WHERE session_id = ?').get(session.session_id) as any;
+    const earlyExitRequestedBy = sessionData?.early_exit_requested_by || null;
+    const hasEarlyExitRequest = earlyExitRequestedBy && earlyExitRequestedBy !== userId;
 
     return NextResponse.json({
       session: {
@@ -69,6 +74,7 @@ export async function GET(request: NextRequest) {
         otherUserId,
         myRandomName: randomName,
         otherRandomName,
+        earlyExitRequestedBy: hasEarlyExitRequest ? earlyExitRequestedBy : null,
       },
       messages,
     });
@@ -117,14 +123,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true });
     } else if (action === 'early-exit-request') {
       const elapsed = Date.now() - session.started_at;
-      const tenMinutes = 10 * 60 * 1000;
+      const twoMinutes = 2 * 60 * 1000; // Changed to 2 minutes for testing
 
-      if (elapsed < tenMinutes) {
-        // Request early exit - return info for other user to approve
-        const otherUserId = getOtherUserId(session, userId);
+      if (elapsed < twoMinutes) {
+        // Store early exit request in database
+        db.prepare('UPDATE chat_sessions SET early_exit_requested_by = ? WHERE session_id = ?').run(userId, sessionId);
         return NextResponse.json({
           requiresApproval: true,
-          otherUserId,
         });
       } else {
         // Can leave freely
@@ -134,6 +139,9 @@ export async function PATCH(request: NextRequest) {
     } else if (action === 'early-exit-approval') {
       const { approved } = data;
       const otherUserId = getOtherUserId(session, userId);
+
+      // Clear the early exit request
+      db.prepare('UPDATE chat_sessions SET early_exit_requested_by = NULL WHERE session_id = ?').run(sessionId);
 
       if (!approved) {
         // Apply penalty to requester

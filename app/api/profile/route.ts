@@ -8,7 +8,7 @@ const profileUpdateSchema = z.object({
   marital_status: z.enum(['Single', 'Married', 'Divorced', 'Widowed', 'In a Relationship', "It's Complicated"]).optional(),
   employment: z.enum(['Employed Full-time', 'Employed Part-time', 'Self-employed', 'Unemployed', 'Student', 'Retired', 'Homemaker']).optional(),
   hobbies: z.array(z.string().max(30)).max(10).optional(),
-  location: z.string().regex(/^(0[1-9]|1[0-9]|2[0-8])$/).optional(),
+  location: z.string().max(100).optional(),
   has_baby: z.enum(['Yes', 'No', 'Expecting']).optional(),
   career_field: z.string().max(50).optional(),
   privacy_settings: z.record(z.enum(['anonymous_can_see', 'match_can_see', 'no_one_can_see'])).optional(),
@@ -17,6 +17,11 @@ const profileUpdateSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const { userId } = requireAuth(request);
+    const { updateLastActive } = await import('@/lib/auth');
+    
+    // Mark user as online when they access their profile (dashboard)
+    updateLastActive(userId);
+    
     const user = getUserById(userId);
     
     if (!user) {
@@ -34,8 +39,9 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    console.error('Error in GET /api/profile:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
@@ -64,8 +70,9 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
+    console.error('Error in PATCH /api/profile:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }

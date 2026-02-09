@@ -6,7 +6,13 @@ import Link from 'next/link';
 
 const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'In a Relationship', "It's Complicated"];
 const employmentTypes = ['Employed Full-time', 'Employed Part-time', 'Self-employed', 'Unemployed', 'Student', 'Retired', 'Homemaker'];
-const districts = Array.from({ length: 28 }, (_, i) => String(i + 1).padStart(2, '0'));
+const singaporeLocations = [
+  'Central Region', 'Orchard', 'Marina Bay', 'Chinatown', 'Little India', 'Clarke Quay',
+  'North Region', 'Woodlands', 'Yishun', 'Sembawang', 'Ang Mo Kio', 'Bishan',
+  'East Region', 'Tampines', 'Pasir Ris', 'Bedok', 'Changi', 'Simei',
+  'West Region', 'Jurong', 'Clementi', 'Boon Lay', 'Pioneer', 'Tuas',
+  'North-East Region', 'Punggol', 'Sengkang', 'Hougang', 'Serangoon', 'Kovan'
+];
 const careerFields = [
   'Technology', 'Healthcare', 'Education', 'Finance', 'Marketing', 'Law', 'Engineering',
   'Design', 'Sales', 'Human Resources', 'Operations', 'Consulting', 'Media', 'Hospitality',
@@ -39,8 +45,10 @@ export default function SignupPage() {
     careerOther: '',
   });
 
-  // Step 3: Privacy settings
-  const [privacy, setPrivacy] = useState<Record<string, string>>({});
+  // Step 3: Privacy settings - Age is always visible by default
+  const [privacy, setPrivacy] = useState<Record<string, string>>({
+    age: 'anonymous_can_see', // Age is always visible
+  });
 
   // Step 4: Credentials
   const [credentials, setCredentials] = useState({
@@ -88,9 +96,11 @@ export default function SignupPage() {
         return;
       }
 
-      // Create privacy settings object
-      const privacySettings: Record<string, string> = {};
-      const fields = ['age', 'maritalStatus', 'employment', 'hobbies', 'location', 'hasBaby', 'careerField'];
+      // Create privacy settings object - Age is always visible
+      const privacySettings: Record<string, string> = {
+        age: 'anonymous_can_see', // Age is always visible
+      };
+      const fields = ['maritalStatus', 'employment', 'hobbies', 'location', 'hasBaby', 'careerField'];
       fields.forEach(field => {
         privacySettings[field] = privacy[field] || 'no_one_can_see';
       });
@@ -221,25 +231,54 @@ export default function SignupPage() {
         )}
 
         {step === 2 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
-            
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Information</h2>
+              <p className="text-sm text-gray-600">Fill in your details and set visibility for each field</p>
+            </div>
+            
+            {/* Age - Always visible and required */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">
+                  Age <span className="text-red-500">*</span>
+                </label>
+                <span className="text-sm font-medium text-gray-500 px-3 py-1 rounded-lg bg-gray-50">
+                  Always Visible
+                </span>
+              </div>
               <select
                 value={profile.age}
                 onChange={(e) => setProfile({ ...profile, age: e.target.value })}
+                required
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
-                <option value="">Select age</option>
+                <option value="">Select age *</option>
                 {Array.from({ length: 83 }, (_, i) => i + 18).map(age => (
                   <option key={age} value={age}>{age}</option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+            {/* Marital Status */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">Marital Status</label>
+                <button
+                  onClick={() => {
+                    const currentPrivacy = privacy.maritalStatus || 'no_one_can_see';
+                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
+                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
+                    setPrivacy({ ...privacy, maritalStatus: options[nextIndex] });
+                  }}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
+                >
+                  {privacy.maritalStatus === 'anonymous_can_see' ? 'Visible' : privacy.maritalStatus === 'match_can_see' ? 'Friends Only' : 'Hidden'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               <select
                 value={profile.maritalStatus}
                 onChange={(e) => setProfile({ ...profile, maritalStatus: e.target.value })}
@@ -252,8 +291,25 @@ export default function SignupPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Employment</label>
+            {/* Employment */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">Employment</label>
+                <button
+                  onClick={() => {
+                    const currentPrivacy = privacy.employment || 'no_one_can_see';
+                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
+                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
+                    setPrivacy({ ...privacy, employment: options[nextIndex] });
+                  }}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
+                >
+                  {privacy.employment === 'anonymous_can_see' ? 'Visible' : privacy.employment === 'match_can_see' ? 'Friends Only' : 'Hidden'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               <select
                 value={profile.employment}
                 onChange={(e) => setProfile({ ...profile, employment: e.target.value })}
@@ -266,10 +322,27 @@ export default function SignupPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hobbies ({profile.hobbies.length}/10)
-              </label>
+            {/* Hobbies */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">
+                  Hobbies ({profile.hobbies.length}/10)
+                </label>
+                <button
+                  onClick={() => {
+                    const currentPrivacy = privacy.hobbies || 'no_one_can_see';
+                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
+                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
+                    setPrivacy({ ...privacy, hobbies: options[nextIndex] });
+                  }}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
+                >
+                  {privacy.hobbies === 'anonymous_can_see' ? 'Visible' : privacy.hobbies === 'match_can_see' ? 'Friends Only' : 'Hidden'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -277,14 +350,14 @@ export default function SignupPage() {
                   onChange={(e) => setProfile({ ...profile, hobbyInput: e.target.value })}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddHobby())}
                   maxLength={30}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                  className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none"
                   placeholder="Add hobby (max 30 chars)"
                 />
                 <button
                   type="button"
                   onClick={handleAddHobby}
                   disabled={profile.hobbies.length >= 10}
-                  className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 bg-gray-200 rounded-xl disabled:opacity-50 hover:bg-gray-300 transition-all"
                 >
                   Add
                 </button>
@@ -293,12 +366,12 @@ export default function SignupPage() {
                 {profile.hobbies.map((hobby, i) => (
                   <span
                     key={i}
-                    className="px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-sm flex items-center gap-2"
+                    className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm flex items-center gap-2"
                   >
                     {hobby}
                     <button
                       onClick={() => setProfile({ ...profile, hobbies: profile.hobbies.filter((_, idx) => idx !== i) })}
-                      className="text-pink-600 hover:text-pink-800"
+                      className="text-primary-600 hover:text-primary-800"
                     >
                       ×
                     </button>
@@ -307,22 +380,56 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location (District)</label>
+            {/* Location */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">Location</label>
+                <button
+                  onClick={() => {
+                    const currentPrivacy = privacy.location || 'no_one_can_see';
+                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
+                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
+                    setPrivacy({ ...privacy, location: options[nextIndex] });
+                  }}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
+                >
+                  {privacy.location === 'anonymous_can_see' ? 'Visible' : privacy.location === 'match_can_see' ? 'Friends Only' : 'Hidden'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               <select
                 value={profile.location}
                 onChange={(e) => setProfile({ ...profile, location: e.target.value })}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
               >
-                <option value="">Select district</option>
-                {districts.map(district => (
-                  <option key={district} value={district}>District {district}</option>
+                <option value="">Select location</option>
+                {singaporeLocations.map(location => (
+                  <option key={location} value={location}>{location}</option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Has Baby</label>
+            {/* Has Baby */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">Has Baby</label>
+                <button
+                  onClick={() => {
+                    const currentPrivacy = privacy.hasBaby || 'no_one_can_see';
+                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
+                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
+                    setPrivacy({ ...privacy, hasBaby: options[nextIndex] });
+                  }}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
+                >
+                  {privacy.hasBaby === 'anonymous_can_see' ? 'Visible' : privacy.hasBaby === 'match_can_see' ? 'Friends Only' : 'Hidden'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               <select
                 value={profile.hasBaby}
                 onChange={(e) => setProfile({ ...profile, hasBaby: e.target.value })}
@@ -335,8 +442,25 @@ export default function SignupPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Career Field</label>
+            {/* Career Field */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">Career Field</label>
+                <button
+                  onClick={() => {
+                    const currentPrivacy = privacy.careerField || 'no_one_can_see';
+                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
+                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
+                    setPrivacy({ ...privacy, careerField: options[nextIndex] });
+                  }}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
+                >
+                  {privacy.careerField === 'anonymous_can_see' ? 'Visible' : privacy.careerField === 'match_can_see' ? 'Friends Only' : 'Hidden'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               <select
                 value={profile.careerField}
                 onChange={(e) => setProfile({ ...profile, careerField: e.target.value })}
@@ -353,13 +477,13 @@ export default function SignupPage() {
                   value={profile.careerOther}
                   onChange={(e) => setProfile({ ...profile, careerOther: e.target.value })}
                   maxLength={50}
-                  className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg"
+                  className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none"
                   placeholder="Specify career field"
                 />
               )}
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 pt-4">
               <button
                 onClick={() => setStep(1)}
                 className="btn-secondary flex-1"
@@ -370,55 +494,13 @@ export default function SignupPage() {
                 onClick={() => setStep(3)}
                 className="btn-primary flex-1"
               >
-                Next: Privacy Settings
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Privacy Settings</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Choose who can see each field. "Anonymous can see" means visible during matching and anonymous chats.
-              "Match can see" means only visible to friends. "No one can see" means never visible.
-            </p>
-
-            {['age', 'maritalStatus', 'employment', 'hobbies', 'location', 'hasBaby', 'careerField'].map(field => (
-              <div key={field}>
-                <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                  {field.replace(/([A-Z])/g, ' $1').trim()}
-                </label>
-                <select
-                  value={privacy[field] || 'no_one_can_see'}
-                  onChange={(e) => setPrivacy({ ...privacy, [field]: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
-                >
-                  <option value="anonymous_can_see">Anonymous can see</option>
-                  <option value="match_can_see">Match can see</option>
-                  <option value="no_one_can_see">No one can see</option>
-                </select>
-              </div>
-            ))}
-
-            <div className="flex gap-4">
-              <button
-                onClick={() => setStep(2)}
-                className="btn-secondary flex-1"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStep(4)}
-                className="btn-primary flex-1"
-              >
                 Next: Create Account
               </button>
             </div>
           </div>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold mb-4">Create Login Credentials</h2>
 
@@ -459,7 +541,7 @@ export default function SignupPage() {
 
             <div className="flex gap-4">
               <button
-                onClick={() => setStep(3)}
+                onClick={() => setStep(2)}
                 className="btn-secondary flex-1"
               >
                 Back

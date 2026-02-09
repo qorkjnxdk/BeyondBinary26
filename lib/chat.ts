@@ -1,6 +1,7 @@
 import db from './db';
 import { v4 as uuidv4 } from 'uuid';
 import { generateRandomName } from './matching';
+import { getUserById } from './auth';
 
 export interface ChatSession {
   session_id: string;
@@ -38,26 +39,41 @@ export function createChatSession(
   const userARandomName = generateRandomName();
   const userBRandomName = generateRandomName();
 
-  db.prepare(`
-    INSERT INTO chat_sessions (
-      session_id, user_a_id, user_b_id, user_a_random_name, user_b_random_name,
-      session_type, prompt_text, started_at, minimum_time_met, is_active, became_friends
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 0)
-  `).run(sessionId, userAId, userBId, userARandomName, userBRandomName, sessionType, promptText || null, now);
+  try {
+    // Verify users exist before inserting (foreign key constraint)
+    const userA = getUserById(userAId);
+    const userB = getUserById(userBId);
+    
+    if (!userA || !userB) {
+      const missingUser = !userA ? userAId : userBId;
+      throw new Error(`User not found: ${missingUser}. Cannot create chat session.`);
+    }
+    
+    db.prepare(`
+      INSERT INTO chat_sessions (
+        session_id, user_a_id, user_b_id, user_a_random_name, user_b_random_name,
+        session_type, prompt_text, started_at, minimum_time_met, is_active, became_friends
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 0)
+    `).run(sessionId, userAId, userBId, userARandomName, userBRandomName, sessionType, promptText || null, now);
 
-  return {
-    session_id: sessionId,
-    user_a_id: userAId,
-    user_b_id: userBId,
-    user_a_random_name: userARandomName,
-    user_b_random_name: userBRandomName,
-    session_type: sessionType,
-    prompt_text: promptText,
-    started_at: now,
-    minimum_time_met: false,
-    is_active: true,
-    became_friends: false,
-  };
+    return {
+      session_id: sessionId,
+      user_a_id: userAId,
+      user_b_id: userBId,
+      user_a_random_name: userARandomName,
+      user_b_random_name: userBRandomName,
+      session_type: sessionType,
+      prompt_text: promptText,
+      started_at: now,
+      minimum_time_met: false,
+      is_active: true,
+      became_friends: false,
+    };
+  } catch (error: any) {
+    console.error('Error creating chat session:', error);
+    console.error('Parameters:', { sessionId, userAId, userBId, userARandomName, userBRandomName, sessionType, promptText, now });
+    throw error;
+  }
 }
 
 // Get chat session by ID

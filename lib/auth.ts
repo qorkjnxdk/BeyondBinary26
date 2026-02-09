@@ -118,13 +118,14 @@ export function updateLastActive(userId: string): void {
 }
 
 export function getOnlineUsers(excludeUserId?: string): User[] {
-  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  // Extended to 30 minutes for testing - users who have been active in last 30 minutes
+  const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
   let query = `
     SELECT u.* FROM users u
     INNER JOIN online_users ou ON u.user_id = ou.user_id
     WHERE ou.last_ping > ? AND u.account_status = 'active'
   `;
-  const params: any[] = [fiveMinutesAgo];
+  const params: any[] = [thirtyMinutesAgo];
 
   if (excludeUserId) {
     query += ' AND u.user_id != ?';

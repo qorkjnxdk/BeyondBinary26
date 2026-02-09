@@ -12,7 +12,7 @@ interface ChatInterfaceProps {
 export default function ChatInterface({ session, user, onChatEnd }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState('');
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
+  const [timeRemaining, setTimeRemaining] = useState(120); // 2 minutes in seconds for testing
   const [minimumTimeMet, setMinimumTimeMet] = useState(false);
   const [showContinuePrompt, setShowContinuePrompt] = useState(false);
   const [showFriendPrompt, setShowFriendPrompt] = useState(false);
@@ -29,9 +29,9 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   }, [session.session_id]);
 
   useEffect(() => {
-    // Timer countdown
+    // Timer countdown - 2 minutes for testing
     const elapsed = Math.floor((Date.now() - session.started_at) / 1000);
-    const remaining = Math.max(0, 600 - elapsed);
+    const remaining = Math.max(0, 120 - elapsed);
     setTimeRemaining(remaining);
 
     if (remaining === 0 && !minimumTimeMet) {
@@ -41,7 +41,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
 
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - session.started_at) / 1000);
-      const remaining = Math.max(0, 600 - elapsed);
+      const remaining = Math.max(0, 120 - elapsed);
       setTimeRemaining(remaining);
 
       if (remaining === 0 && !minimumTimeMet) {
@@ -65,6 +65,10 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       const data = await response.json();
       if (data.messages) {
         setMessages(data.messages);
+      }
+      // Check for early exit request from other user
+      if (data.session?.earlyExitRequestedBy && !earlyExitApproval?.waiting) {
+        setEarlyExitApproval({ waiting: false, requestedBy: data.session.earlyExitRequestedBy });
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -139,7 +143,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   };
 
   const handleEarlyExitApproval = async (approved: boolean) => {
-    await fetch('/api/chat', {
+    const response = await fetch('/api/chat', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -152,11 +156,17 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       }),
     });
 
+    const data = await response.json();
+
     if (approved) {
       await endChat(false);
     } else {
-      setEarlyExitRequested(false);
+      // Clear the approval state
       setEarlyExitApproval(null);
+      // If penalty was applied, show message
+      if (data.penaltyApplied) {
+        alert('The other user has been penalized for requesting early exit.');
+      }
     }
   };
 
@@ -195,6 +205,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   };
 
   const otherUserName = session.otherRandomName || 'Unknown';
+  const myRandomName = session.myRandomName || session.user_a_random_name || session.user_b_random_name || 'You';
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
@@ -277,7 +288,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
               </div>
               {isMine && (
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {session.myRandomName.charAt(0)}
+                  {myRandomName.charAt(0)}
                 </div>
               )}
             </div>
@@ -317,7 +328,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           </div>
         )}
 
-        {earlyExitApproval && !earlyExitApproval.waiting && (
+        {earlyExitApproval && !earlyExitApproval.waiting && earlyExitApproval.requestedBy && (
           <div className="mb-4 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl">
             <p className="mb-3 font-bold text-gray-900">
               {otherUserName} wants to leave early. Approve?

@@ -1,5 +1,5 @@
 import db from './db';
-import { getOnlineUsers, getUserById, type User } from './auth';
+import { getOnlineUsers, getUserById, updateLastActive, type User } from './auth';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface MatchResult {
@@ -67,16 +67,36 @@ function calculateProfileCompatibility(userA: User, userB: User): number {
 
   // Geographic proximity (max 25 points)
   if (userA.location && userB.location) {
-    const districtA = parseInt(userA.location);
-    const districtB = parseInt(userB.location);
-    if (!isNaN(districtA) && !isNaN(districtB)) {
-      const distance = Math.abs(districtA - districtB);
-      if (distance === 0) {
-        score += 25;
-      } else if (distance === 1) {
+    // Same location
+    if (userA.location === userB.location) {
+      score += 25;
+    } else {
+      // Check if same region (Central, North, East, West, North-East)
+      const getRegion = (location: string): string | null => {
+        if (location.includes('Central') || location.includes('Orchard') || location.includes('Marina') || location.includes('Chinatown') || location.includes('Little India') || location.includes('Clarke')) {
+          return 'Central';
+        }
+        if (location.includes('North') || location.includes('Woodlands') || location.includes('Yishun') || location.includes('Sembawang') || location.includes('Ang Mo Kio') || location.includes('Bishan')) {
+          return 'North';
+        }
+        if (location.includes('East') || location.includes('Tampines') || location.includes('Pasir Ris') || location.includes('Bedok') || location.includes('Changi') || location.includes('Simei')) {
+          return 'East';
+        }
+        if (location.includes('West') || location.includes('Jurong') || location.includes('Clementi') || location.includes('Boon Lay') || location.includes('Pioneer') || location.includes('Tuas')) {
+          return 'West';
+        }
+        if (location.includes('North-East') || location.includes('Punggol') || location.includes('Sengkang') || location.includes('Hougang') || location.includes('Serangoon') || location.includes('Kovan')) {
+          return 'North-East';
+        }
+        return null;
+      };
+      
+      const regionA = getRegion(userA.location);
+      const regionB = getRegion(userB.location);
+      if (regionA && regionB && regionA === regionB) {
         score += 15;
-      } else if (distance <= 3) {
-        score += 5;
+      } else if (regionA && regionB) {
+        score += 5; // Different regions but still in Singapore
       }
     }
   }
@@ -106,6 +126,9 @@ function wereMatchedRecently(userAId: string, userBId: string): boolean {
     LIMIT 1
   `).get(userAId, userBId, userBId, userAId, oneDayAgo);
 
+  if (session) {
+    console.log(`[MATCHING] Users ${userAId.substring(0, 8)}... and ${userBId.substring(0, 8)}... were matched recently (within 24 hours)`);
+  }
   return !!session;
 }
 
@@ -116,42 +139,91 @@ function isBlocked(blockerId: string, blockedId: string): boolean {
     WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)
     LIMIT 1
   `).get(blockerId, blockedId, blockedId, blockerId);
+  if (block) {
+    console.log(`[MATCHING] Block found between ${blockerId.substring(0, 8)}... and ${blockedId.substring(0, 8)}...`);
+  }
   return !!block;
 }
 
 // Main matching function
 export function findMatches(userId: string, prompt: string): MatchResult[] {
-  const user = getUserById(userId);
-  if (!user) return [];
-
-  // Get eligible candidates
-  const onlineUsers = getOnlineUsers(userId);
-  
-  // Filter candidates
-  const candidates = onlineUsers.filter(candidate => {
-    // Exclude if blocked
-    if (isBlocked(userId, candidate.user_id) || isBlocked(candidate.user_id, userId)) {
-      return false;
+  try {
+    const user = getUserById(userId);
+    if (!user) {
+      console.error('User not found:', userId);
+      return [];
     }
 
-    // Exclude if matched recently (unless friends)
-    if (wereMatchedRecently(userId, candidate.user_id)) {
-      // Check if they're friends
-      const friendship = db.prepare(`
-        SELECT friendship_id FROM friendships
-        WHERE (user_a_id = ? AND user_b_id = ?) OR (user_a_id = ? AND user_b_id = ?)
-        LIMIT 1
-      `).get(userId, candidate.user_id, candidate.user_id, userId);
-      if (!friendship) return false;
-    }
+    // Update user's last active to mark them as online
+    updateLastActive(userId);
 
-    // Exclude if penalized
-    if (candidate.penalty_end_date && Date.now() < candidate.penalty_end_date) {
-      return false;
+    // Get eligible candidates
+    let onlineUsers = getOnlineUsers(userId);
+    console.log('[MATCHING] Online users found:', onlineUsers.length);
+    console.log('[MATCHING] Online user IDs:', onlineUsers.map(u => u.user_id));
+    
+    // For testing: if no online users, also check users who have logged in recently (last 1 hour)
+    if (onlineUsers.length === 0) {
+      console.log('[MATCHING] No online users, checking recently active users...');
+      const oneHourAgo = Date.now() - 60 * 60 * 1000;
+      const recentUsers = db.prepare(`
+        SELECT u.* FROM users u
+        WHERE u.last_active > ? AND u.account_status = 'active' AND u.user_id != ?
+      `).all(oneHourAgo, userId) as any[];
+      
+      console.log('[MATCHING] Recently active users (raw):', recentUsers.length);
+      onlineUsers = recentUsers.map(user => ({
+        ...user,
+        hobbies: user.hobbies ? JSON.parse(user.hobbies) : [],
+        privacy_settings: user.privacy_settings ? JSON.parse(user.privacy_settings) : {},
+      }));
+      console.log('[MATCHING] Recently active users found:', onlineUsers.length);
+      console.log('[MATCHING] Recently active user IDs:', onlineUsers.map(u => u.user_id));
     }
+    
+    // Log total users in database for debugging
+    const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE account_status = ?').get('active') as { count: number };
+    console.log('[MATCHING] Total active users in database:', totalUsers.count);
+    
+    // Filter candidates with detailed logging
+    const candidates = onlineUsers.filter(candidate => {
+      console.log(`[MATCHING] Checking candidate: ${candidate.user_id}`);
+      
+      // Exclude if blocked
+      const isBlockedCheck = isBlocked(userId, candidate.user_id) || isBlocked(candidate.user_id, userId);
+      if (isBlockedCheck) {
+        console.log(`[MATCHING] Candidate ${candidate.user_id} filtered: BLOCKED`);
+        return false;
+      }
 
-    return true;
-  });
+      // Exclude if matched recently (unless friends) - DISABLED FOR TESTING
+      // const wasMatchedRecently = wereMatchedRecently(userId, candidate.user_id);
+      // if (wasMatchedRecently) {
+      //   // Check if they're friends
+      //   const friendship = db.prepare(`
+      //     SELECT friendship_id FROM friendships
+      //     WHERE (user_a_id = ? AND user_b_id = ?) OR (user_a_id = ? AND user_b_id = ?)
+      //     LIMIT 1
+      //   `).get(userId, candidate.user_id, candidate.user_id, userId);
+      //   if (!friendship) {
+      //     console.log(`[MATCHING] Candidate ${candidate.user_id} filtered: MATCHED RECENTLY (not friends)`);
+      //     return false;
+      //   }
+      //   console.log(`[MATCHING] Candidate ${candidate.user_id} passed: MATCHED RECENTLY but are friends`);
+      // }
+
+      // Exclude if penalized
+      if (candidate.penalty_end_date && Date.now() < candidate.penalty_end_date) {
+        console.log(`[MATCHING] Candidate ${candidate.user_id} filtered: PENALIZED`);
+        return false;
+      }
+
+      console.log(`[MATCHING] Candidate ${candidate.user_id} PASSED all filters`);
+      return true;
+    });
+
+  console.log('[MATCHING] Filtered candidates:', candidates.length);
+  console.log('[MATCHING] Filtered candidate IDs:', candidates.map(c => c.user_id));
 
   // Calculate scores
   const scoredCandidates: Array<{ user: User; score: number }> = [];
@@ -171,12 +243,16 @@ export function findMatches(userId: string, prompt: string): MatchResult[] {
   scoredCandidates.sort((a, b) => b.score - a.score);
   const topCandidates = scoredCandidates.slice(0, 5);
 
-  // Convert to MatchResult with random names
-  return topCandidates.map(({ user, score }) => ({
-    user,
-    similarityScore: Math.max(50, Math.min(99, Math.round(score * 100))), // 50-99%
-    randomName: generateRandomName(),
-  }));
+    // Convert to MatchResult with random names
+    return topCandidates.map(({ user, score }) => ({
+      user,
+      similarityScore: Math.max(50, Math.min(99, Math.round(score * 100))), // 50-99%
+      randomName: generateRandomName(),
+    }));
+  } catch (error) {
+    console.error('Error in findMatches:', error);
+    return [];
+  }
 }
 
 // Get visible profile data based on privacy settings

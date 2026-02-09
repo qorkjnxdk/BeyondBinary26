@@ -51,7 +51,15 @@ export function getPendingInvites(userId: string, type: 'sent' | 'received'): In
 // Accept an invite
 export function acceptInvite(inviteId: string): Invite | null {
   const invite = db.prepare('SELECT * FROM invites WHERE invite_id = ?').get(inviteId) as any;
-  if (!invite || invite.status !== 'pending') return null;
+  if (!invite) return null;
+  
+  // Check if invite is still pending and not expired
+  if (invite.status !== 'pending') return null;
+  if (invite.expires_at <= Date.now()) {
+    // Auto-expire it
+    db.prepare('UPDATE invites SET status = ? WHERE invite_id = ?').run('expired', inviteId);
+    return null;
+  }
 
   // Cancel all other pending invites for both users
   db.prepare(`
@@ -63,7 +71,7 @@ export function acceptInvite(inviteId: string): Invite | null {
   `).run(invite.sender_id, invite.sender_id, invite.receiver_id, invite.receiver_id, inviteId);
 
   // Mark this invite as accepted
-  db.prepare('UPDATE invites SET status = "accepted" WHERE invite_id = ?').run(inviteId);
+  db.prepare('UPDATE invites SET status = ? WHERE invite_id = ?').run('accepted', inviteId);
 
   return {
     ...invite,
@@ -73,7 +81,7 @@ export function acceptInvite(inviteId: string): Invite | null {
 
 // Decline an invite
 export function declineInvite(inviteId: string): void {
-  db.prepare('UPDATE invites SET status = "declined" WHERE invite_id = ?').run(inviteId);
+  db.prepare('UPDATE invites SET status = ? WHERE invite_id = ?').run('declined', inviteId);
 }
 
 // Cancel all pending invites for a user
