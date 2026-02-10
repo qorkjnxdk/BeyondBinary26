@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { initializeSocket } from '@/lib/socket';
+import type { Socket } from 'socket.io-client';
 
 interface Match {
   userId: string;
@@ -14,6 +16,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
+  const socketRef = useRef<Socket | null>(null);
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
 
@@ -174,13 +177,75 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
   };
 
   useEffect(() => {
-    loadInvites();
+    loadInvites(); // Initial load
     checkForActiveSession(); // Check immediately
-    const inviteInterval = setInterval(loadInvites, 2000); // Poll invites every 2 seconds
-    const sessionInterval = setInterval(checkForActiveSession, 2000); // Check for active session every 2 seconds
+
+    let mounted = true;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+    async function setupSocket() {
+      try {
+        const socket = await initializeSocket();
+        if (!mounted) return;
+
+        socketRef.current = socket;
+
+        // Listen for incoming invites
+        socket.on('invite-received', (invite: any) => {
+          if (!mounted) return;
+          setInvites((prev) => {
+            // Deduplicate by invite_id
+            if (prev.some((i) => i.invite_id === invite.invite_id)) {
+              return prev;
+            }
+            return [invite, ...prev];
+          });
+        });
+
+        // Listen for invite acceptance (someone accepted our invite)
+        socket.on('invite-accepted', (data: any) => {
+          if (!mounted) return;
+          // Remove the invite from sent invites
+          setInvites((prev) => prev.filter((i) => i.invite_id !== data.inviteId));
+          // Start the chat session
+          if (data.session) {
+            onMatchAccepted(data.session);
+          }
+        });
+
+        // Listen for invite decline
+        socket.on('invite-declined', (data: any) => {
+          if (!mounted) return;
+          // Remove the declined invite
+          setInvites((prev) => prev.filter((i) => i.invite_id !== data.inviteId));
+        });
+
+        // On reconnect, reload invites
+        socket.on('connect', () => {
+          loadInvites();
+          checkForActiveSession();
+        });
+      } catch (error) {
+        console.error('Failed to initialize socket, falling back to polling:', error);
+        fallbackInterval = setInterval(() => {
+          loadInvites();
+          checkForActiveSession();
+        }, 3000);
+      }
+    }
+
+    setupSocket();
+
     return () => {
-      clearInterval(inviteInterval);
-      clearInterval(sessionInterval);
+      mounted = false;
+      if (fallbackInterval) clearInterval(fallbackInterval);
+      const socket = socketRef.current;
+      if (socket) {
+        socket.off('invite-received');
+        socket.off('invite-accepted');
+        socket.off('invite-declined');
+        socket.off('connect');
+      }
     };
   }, []);
 

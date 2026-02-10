@@ -56,6 +56,10 @@ export default function handler(
   io.on('connection', (socket) => {
     const userId = socket.data.userId;
 
+    // Auto-join personal notification room
+    socket.join(`user:${userId}`);
+
+    // Chat session events
     socket.on('join-session', (sessionId: string) => {
       socket.join(sessionId);
     });

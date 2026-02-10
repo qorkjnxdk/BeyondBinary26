@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
 import { createInvite, getPendingInvites, acceptInvite, declineInvite, cancelAllInvites } from '@/lib/invites';
 import { createChatSession } from '@/lib/chat';
+import { getIO } from '@/lib/socketServer';
 import { z } from 'zod';
 
 const inviteSchema = z.object({
@@ -34,6 +35,24 @@ export async function POST(request: NextRequest) {
     }
 
     const invite = createInvite(userId, validated.receiverId, validated.promptText);
+
+    // Emit socket event to receiver
+    const io = getIO();
+    if (io) {
+      const { getUserById } = await import('@/lib/auth');
+      const { generateRandomName } = await import('@/lib/matching');
+      const sender = getUserById(userId);
+
+      if (sender) {
+        io.to(`user:${validated.receiverId}`).emit('invite-received', {
+          ...invite,
+          otherUser: {
+            userId: sender.user_id,
+            randomName: generateRandomName(),
+          },
+        });
+      }
+    }
 
     return NextResponse.json({ invite });
   } catch (error: any) {
@@ -214,7 +233,21 @@ export async function PATCH(request: NextRequest) {
         const myRandomName = getRandomName(session, userId);
         const otherRandomName = getRandomName(session, otherUserId);
 
-        return NextResponse.json({ 
+        // Emit socket event to sender (invite was accepted)
+        const io = getIO();
+        if (io) {
+          io.to(`user:${invite.sender_id}`).emit('invite-accepted', {
+            inviteId: invite.invite_id,
+            session: {
+              ...session,
+              otherUserId: userId,
+              myRandomName: getRandomName(session, invite.sender_id),
+              otherRandomName: getRandomName(session, userId),
+            },
+          });
+        }
+
+        return NextResponse.json({
           session: {
             ...session,
             otherUserId,
@@ -250,6 +283,15 @@ export async function PATCH(request: NextRequest) {
       }
 
       declineInvite(inviteId);
+
+      // Emit socket event to sender (invite was declined)
+      const io = getIO();
+      if (io) {
+        io.to(`user:${invite.sender_id}`).emit('invite-declined', {
+          inviteId: invite.invite_id,
+        });
+      }
+
       return NextResponse.json({ success: true });
     } else if (action === 'cancel-all') {
       cancelAllInvites(userId);
