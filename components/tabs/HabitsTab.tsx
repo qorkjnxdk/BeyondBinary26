@@ -59,34 +59,35 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
     return history;
   };
 
-  // Memoized social context - only generates once per habits change
+  // Memoized social context - only generates once per historical data change
+  // Shows positive message if >50% success rate, negative if <50%
   const socialContextMap = useMemo(() => {
-    const generateSocialContext = (habitId: string): string => {
+    const generateSocialContext = (habitId: string, completionRate: number): string => {
       // Each habit has one positive and one negative/struggle context
       const contexts: Record<string, { positive: string; negative: string }> = {
         'drink_water': {
-          positive: `${Math.floor(Math.random() * 20) + 15} mothers stayed hydrated today`,
-          negative: `${Math.floor(Math.random() * 15) + 10} mothers finding it hard to drink enough water`,
+          positive: `${Math.floor(Math.random() * 20) + 15} other mothers stayed hydrated today`,
+          negative: `${Math.floor(Math.random() * 15) + 10} other mothers finding it hard to drink enough water`,
         },
         'sleep': {
-          positive: `${Math.floor(Math.random() * 15) + 10} mothers got decent rest last night`,
-          negative: `${Math.floor(Math.random() * 25) + 20} mothers struggled with sleep this week`,
+          positive: `${Math.floor(Math.random() * 15) + 10} other mothers got decent rest last night`,
+          negative: `${Math.floor(Math.random() * 25) + 20} other mothers struggled with sleep this week`,
         },
         'go_outside': {
-          positive: `${Math.floor(Math.random() * 20) + 10} mothers went outside today`,
-          negative: `${Math.floor(Math.random() * 15) + 12} mothers haven't made it outside yet`,
+          positive: `${Math.floor(Math.random() * 20) + 10} other mothers went outside today`,
+          negative: `${Math.floor(Math.random() * 15) + 12} other mothers haven't made it outside yet`,
         },
         'eat_meal': {
-          positive: `${Math.floor(Math.random() * 25) + 15} mothers ate a full meal today`,
-          negative: `${Math.floor(Math.random() * 18) + 10} mothers are struggling to eat regularly`,
+          positive: `${Math.floor(Math.random() * 25) + 15} other mothers ate a full meal today`,
+          negative: `${Math.floor(Math.random() * 18) + 10} other mothers are struggling to eat regularly`,
         },
         'move': {
-          positive: `${Math.floor(Math.random() * 20) + 12} mothers stretched today`,
-          negative: `${Math.floor(Math.random() * 15) + 10} mothers finding it hard to move their body`,
+          positive: `${Math.floor(Math.random() * 20) + 12} other mothers stretched today`,
+          negative: `${Math.floor(Math.random() * 15) + 10} other mothers finding it hard to move their body`,
         },
         'rest': {
-          positive: `${Math.floor(Math.random() * 18) + 10} mothers took time to rest today`,
-          negative: `${Math.floor(Math.random() * 20) + 15} mothers struggling to find time to rest`,
+          positive: `${Math.floor(Math.random() * 18) + 10} other mothers took time to rest today`,
+          negative: `${Math.floor(Math.random() * 20) + 15} other mothers struggling to find time to rest`,
         },
       };
 
@@ -95,16 +96,19 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
         negative: 'Others find this challenging too'
       };
 
-      // Randomly choose positive or negative
-      return Math.random() < 0.5 ? contextPair.positive : contextPair.negative;
+      // Show positive if >50% completion, negative if <50%
+      return completionRate > 0.5 ? contextPair.positive : contextPair.negative;
     };
 
     const map: Record<string, string> = {};
     habits.forEach(habit => {
-      map[habit.id] = generateSocialContext(habit.id);
+      const logs = historicalData[habit.id] || [];
+      const completedCount = logs.filter(log => log.completed).length;
+      const rate = logs.length > 0 ? completedCount / logs.length : 0.5;
+      map[habit.id] = generateSocialContext(habit.id, rate);
     });
     return map;
-  }, [habits]);
+  }, [habits, historicalData]);
 
   // Memoized gentle insight - only generates once per historical data change
   const insight = useMemo(() => {
@@ -112,40 +116,63 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
 
     const insights: { habitId: string; completionRate: number; message: string }[] = [];
 
+    // Custom messages for each habit at different completion rates
+    const habitMessages: Record<string, { low: string; high: string; moderate: string }> = {
+      'drink_water': {
+        low: 'Staying hydrated has been tough lately. You\'re doing your best, and that\'s enough.',
+        high: 'You\'ve been good about drinking water — that\'s caring for yourself.',
+        moderate: 'You\'ve been drinking less water this week — even a few sips helps.',
+      },
+      'sleep': {
+        low: 'Sleep has been tough lately. You\'re doing your best, and that\'s enough.',
+        high: 'You\'ve been getting decent rest — that\'s wonderful.',
+        moderate: 'Sleep has been harder this week — rest when you can.',
+      },
+      'go_outside': {
+        low: 'Getting outside has been challenging. You\'re doing your best, and that\'s enough.',
+        high: 'You\'ve been good about getting outside — that\'s caring for yourself.',
+        moderate: 'You\'ve been outside less this week — even 5 minutes helps.',
+      },
+      'eat_meal': {
+        low: 'Eating regular meals has been tough lately. You\'re doing your best, and that\'s enough.',
+        high: 'You\'ve been good about eating — that\'s caring for yourself.',
+        moderate: 'You\'ve been eating less regularly this week — small bites count too.',
+      },
+      'move': {
+        low: 'Moving your body has been challenging. You\'re doing your best, and that\'s enough.',
+        high: 'You\'ve been good about stretching and moving — that\'s wonderful.',
+        moderate: 'You\'ve been moving less this week — gentle stretches are enough.',
+      },
+      'rest': {
+        low: 'Finding time to rest has been tough lately. You\'re doing your best, and that\'s enough.',
+        high: 'You\'ve been good about resting — you deserve this time.',
+        moderate: 'You\'ve been resting less this week — you deserve this time.',
+      },
+    };
+
     Object.entries(historicalData).forEach(([habitId, logs]) => {
       const completedCount = logs.filter(log => log.completed).length;
       const rate = completedCount / logs.length;
 
-      const habit = habits.find(h => h.id === habitId);
-      if (!habit) return;
+      const messages = habitMessages[habitId];
+      if (!messages) return;
 
+      let message: string;
       if (rate <= 0.3) {
-        insights.push({
-          habitId,
-          completionRate: rate,
-          message: `${habit.label} has been tough lately. You're doing your best, and that's enough.`,
-        });
+        message = messages.low;
       } else if (rate >= 0.7) {
-        insights.push({
-          habitId,
-          completionRate: rate,
-          message: `You've been good about ${habit.label.toLowerCase()} — that's caring for yourself.`,
-        });
+        message = messages.high;
       } else if (rate < 0.5) {
-        const actionMap: Record<string, string> = {
-          'drink_water': 'even a few sips helps',
-          'sleep': 'rest when you can',
-          'go_outside': 'even 5 minutes helps',
-          'eat_meal': 'small bites count too',
-          'move': 'gentle stretches are enough',
-          'rest': 'you deserve this time',
-        };
-        insights.push({
-          habitId,
-          completionRate: rate,
-          message: `You've been ${habit.label.toLowerCase()} less this week — ${actionMap[habitId] || 'small steps matter'}.`,
-        });
+        message = messages.moderate;
+      } else {
+        return; // Skip neutral rates
       }
+
+      insights.push({
+        habitId,
+        completionRate: rate,
+        message,
+      });
     });
 
     // Return one random insight
@@ -299,12 +326,12 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
                     <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 animate-fadeIn">
                       <div className="pt-3">
                         <p className="text-xs font-medium text-gray-600 mb-3">Past 7 days (not including today)</p>
-                        <div className="flex justify-between items-center gap-2">
+                        <div className="grid grid-cols-7 gap-1">
                           {history.map((log) => {
                             return (
                               <div
                                 key={log.date}
-                                className="flex flex-col items-center gap-1 flex-1"
+                                className="flex flex-col items-center gap-1"
                               >
                                 <div
                                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
@@ -315,7 +342,7 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
                                 >
                                   {log.completed ? '✓' : '·'}
                                 </div>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-500 text-center">
                                   {getDayLabel(log.date)}
                                 </span>
                               </div>
