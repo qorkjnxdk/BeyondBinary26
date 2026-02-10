@@ -253,22 +253,6 @@ export default function SentimentTrends() {
               </div>
             )}
           </div>
-
-          {/* Legend */}
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-200 rounded-full border-2 border-red-300"></div>
-              <span>Heavy days (0-29)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gray-200 rounded-full border-2 border-gray-300"></div>
-              <span>Mixed days (30-69)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-200 rounded-full border-2 border-green-300"></div>
-              <span>Good days (70-99)</span>
-            </div>
-          </div>
         </>
       )}
     </div>
