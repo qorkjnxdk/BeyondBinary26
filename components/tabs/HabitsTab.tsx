@@ -75,55 +75,24 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
   // Memoized social context - only generates once per historical data change
   // Shows positive message if >50% success rate, negative if <50%
   const socialContextMap = useMemo(() => {
-    const generateSocialContext = (habitId: string, completionRate: number): string => {
-      // Each habit has one positive and one negative/struggle context, with a shared count
-      const contexts: Record<string, { positive: (count: number) => string; negative: (count: number) => string }> = {
-        'drink_water': {
-          positive: (count) => `${count} other mothers stayed hydrated today`,
-          negative: (count) => `${count} other mothers finding it hard to drink enough water`,
-        },
-        'sleep': {
-          positive: (count) => `${count} other mothers got decent rest last night`,
-          negative: (count) => `${count} other mothers struggled with sleep this week`,
-        },
-        'go_outside': {
-          positive: (count) => `${count} other mothers went outside today`,
-          negative: (count) => `${count} other mothers haven't made it outside yet`,
-        },
-        'eat_meal': {
-          positive: (count) => `${count} other mothers ate a full meal today`,
-          negative: (count) => `${count} other mothers are struggling to eat regularly`,
-        },
-        'move': {
-          positive: (count) => `${count} other mothers stretched today`,
-          negative: (count) => `${count} other mothers finding it hard to move their body`,
-        },
-        'rest': {
-          positive: (count) => `${count} other mothers took time to rest today`,
-          negative: (count) => `${count} other mothers struggling to find time to rest`,
-        },
-      };
-
-      const contextPair = contexts[habitId] || {
-        positive: (count: number) => `${count} others are tracking this too`,
-        negative: (count: number) => `${count} others find this challenging too`,
-      };
-
-      const count = socialCounts[habitId] ?? 0;
-
-      // Show positive if >50% completion, negative if <50%
-      return completionRate > 0.5 ? contextPair.positive(count) : contextPair.negative(count);
+    // Always-positive social messages per habit, using a shared random count
+    const contexts: Record<string, (count: number) => string> = {
+      drink_water: (count) => `${count} other mothers stayed hydrated today`,
+      sleep: (count) => `${count} other mothers got decent rest last night`,
+      go_outside: (count) => `${count} other mothers went outside today`,
+      eat_meal: (count) => `${count} other mothers ate a full meal today`,
+      move: (count) => `${count} other mothers stretched today`,
+      rest: (count) => `${count} other mothers took time to rest today`,
     };
 
     const map: Record<string, string> = {};
     habits.forEach(habit => {
-      const logs = historicalData[habit.id] || [];
-      const completedCount = logs.filter(log => log.completed).length;
-      const rate = logs.length > 0 ? completedCount / logs.length : 0.5;
-      map[habit.id] = generateSocialContext(habit.id, rate);
+      const count = socialCounts[habit.id] ?? 0;
+      const makeMessage = contexts[habit.id] || ((c: number) => `${c} other mothers are doing this today`);
+      map[habit.id] = makeMessage(count);
     });
     return map;
-  }, [habits, historicalData, socialCounts]);
+  }, [habits, socialCounts]);
 
   // Memoized gentle insight - only generates once per historical data change
   const insight = useMemo(() => {
