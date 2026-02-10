@@ -1,10 +1,128 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { singaporeLatLng} from "@/lib/singaporeLatLng";
 
 interface PresenceEntry {
   location: string;
   count: number;
+}
+
+const SG_BOUNDS = {
+  minLat: 1.240,
+  maxLat: 1.475,
+  minLng: 103.600,
+  maxLng: 104.050,
+};
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function latLngToPercent(lat: number, lng: number) {
+  const x01 = (lng - SG_BOUNDS.minLng) / (SG_BOUNDS.maxLng - SG_BOUNDS.minLng);
+  const y01 = (SG_BOUNDS.maxLat - lat) / (SG_BOUNDS.maxLat - SG_BOUNDS.minLat);
+
+  // keep away from edges
+  const x = 8 + clamp(x01, 0, 1) * 84;
+  const y = 10 + clamp(y01, 0, 1) * 80;
+
+  return { left: `${x}%`, top: `${y}%` };
+}
+
+export function DraggableMapViewport({ children }: { children: React.ReactNode }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+
+  const dragging = useRef(false);
+  const last = useRef({ x: 0, y: 0 });
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    last.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    const dx = e.clientX - last.current.x;
+    const dy = e.clientY - last.current.y;
+    last.current = { x: e.clientX, y: e.clientY };
+
+    setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+  };
+
+  const onPointerUp = () => {
+    dragging.current = false;
+  };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handler = (e: WheelEvent) => {
+      // stop the page from scrolling
+      e.preventDefault();
+      e.stopPropagation();
+
+      const zoomIntensity = 0.0015;
+      const nextScale = clamp(view.scale * (1 - e.deltaY * zoomIntensity), 0.8, 2.5);
+
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+
+      setView((v) => {
+        const scaleRatio = nextScale / v.scale;
+        const nextX = cx - (cx - v.x) * scaleRatio;
+        const nextY = cy - (cy - v.y) * scaleRatio;
+        return { x: nextX, y: nextY, scale: nextScale };
+      });
+    };
+
+    // KEY: passive must be false or preventDefault won’t work
+    el.addEventListener("wheel", handler, { passive: false });
+
+    return () => el.removeEventListener("wheel", handler as any);
+  }, [view.scale]);
+
+  const reset = () => setView({ x: 0, y: 0, scale: 1 });
+
+  return (
+      <div
+          ref={containerRef}
+          className="absolute inset-0 cursor-grab active:cursor-grabbing touch-none overscroll-contain"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          // onWheelCapture={onWheel}
+      >
+        {/* Optional reset control */}
+        <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              reset();
+            }}
+            className="absolute z-30 top-3 right-3 px-2 py-1 rounded-lg bg-white/90 backdrop-blur border border-gray-200 text-xs text-gray-700 hover:bg-white"
+        >
+          Reset
+        </button>
+
+        <div
+            className="absolute inset-0"
+            style={{
+              transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+              transformOrigin: "0 0",
+              willChange: "transform",
+            }}
+        >
+          {children}
+        </div>
+      </div>
+  );
 }
 
 export default function PresenceMap() {
@@ -76,44 +194,54 @@ export default function PresenceMap() {
           You might be the first one here right now. Others will join soon.
         </p>
       ) : (
-        <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-gradient-to-br from-sky-100 via-indigo-100 to-emerald-100 h-64 mb-4">
-          {/* Stylised \"map\" background grid */}
-          <div className="absolute inset-0 opacity-30">
-            <div className="w-full h-full bg-[radial-gradient(circle_at_10%_20%,rgba(255,255,255,0.6)_0,transparent_40%),radial-gradient(circle_at_80%_0,rgba(255,255,255,0.8)_0,transparent_45%),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.5)_0,transparent_50%)]" />
-          </div>
+          <div className="relative w-full overflow-hidden rounded-3xl border border-gray-100 mb-4 bg-white aspect-[1536/895]">
+            <DraggableMapViewport>
+              <img
+                  src="/singapore.png"
+                  alt="Singapore map"
+                  draggable={false}
+                  className="absolute inset-0 w-full h-full object-contain object-center select-none pointer-events-none"
+              />
 
-          {/* Pins */}
-          <div className="absolute inset-0">
-            {pins.map((entry, index) => {
-              const pos = pinPositions[index % pinPositions.length];
-              const isSelected = selectedLocation === entry.location;
-              return (
-                <button
-                  key={entry.location}
-                  type="button"
-                  onClick={() =>
-                    setSelectedLocation(
-                      selectedLocation === entry.location ? null : entry.location
-                    )
-                  }
-                  className={`absolute ${pos} transform transition-all duration-200 ${
-                    isSelected ? 'scale-110 z-20' : 'hover:scale-105'
-                  }`}
-                >
-                  <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white text-xs font-bold shadow-lg">
-                      {entry.count}
-                    </div>
-                    <div className="absolute inset-x-1/2 top-8 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-primary-500 opacity-80" />
-                  </div>
-                  <div className="mt-2 px-2 py-1 rounded-full bg-white/90 backdrop-blur text-[10px] font-semibold text-gray-800 max-w-[120px] truncate shadow-sm">
-                    {entry.location}
-                  </div>
-                </button>
-              );
-            })}
+              {/* Pins overlay */}
+              <div className="absolute inset-0">
+                {pins.map((entry) => {
+                  const coord = singaporeLatLng[entry.location];
+                  if (!coord) return null;
+
+                  const { left, top } = latLngToPercent(coord.lat, coord.lng);
+
+                  return (
+                      <button
+                          key={entry.location}
+                          type="button"
+                          onClick={() =>
+                              setSelectedLocation(selectedLocation === entry.location ? null : entry.location)
+                          }
+                          style={{
+                            position: "absolute",
+                            left,
+                            top,
+                            transform: "translate(-50%, -100%)",
+                          }}
+                          className="transition-all hover:scale-105"
+                      >
+                        {/* your pin UI */}
+                        <div className="relative">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white text-xs font-bold shadow-lg">
+                            {entry.count}
+                          </div>
+                          <div className="absolute inset-x-1/2 top-8 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-primary-500 opacity-80" />
+                        </div>
+                        <div className="mt-2 px-2 py-1 rounded-full bg-white/90 backdrop-blur text-[10px] font-semibold text-gray-800 max-w-[120px] truncate shadow-sm">
+                          {entry.location}
+                        </div>
+                      </button>
+                  );
+                })}
+              </div>
+            </DraggableMapViewport>
           </div>
-        </div>
       )}
 
       {presence.length > 0 && (
