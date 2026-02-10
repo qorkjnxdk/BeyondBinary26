@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
     const summary = DEFAULT_HABITS.map(habit => ({
       id: habit.id,
       label: habit.label,
-      completed: logs.some(log => log.habit_type === habit.id),
+      // Completed if the summed value for this habit today is > 0
+      completed:
+        logs
+          .filter(log => log.habit_type === habit.id)
+          .reduce((sum, log) => sum + (log.value || 0), 0) > 0,
     }));
 
     return NextResponse.json({ habits: summary, logs });
@@ -32,8 +36,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'habitType is required' }, { status: 400 });
     }
 
-    const log = logHabit(userId, habitType);
-    return NextResponse.json({ log });
+    // Determine current state for this habit today
+    const logs = getTodayHabits(userId).filter(log => log.habit_type === habitType);
+    const currentTotal = logs.reduce((sum, log) => sum + (log.value || 0), 0);
+
+    // Toggle: if currently completed (>0), log a -1 (untick); otherwise +1 (tick)
+    const delta = currentTotal > 0 ? -1 : 1;
+    const log = logHabit(userId, habitType, delta);
+
+    return NextResponse.json({ log, completed: currentTotal + delta > 0 });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
