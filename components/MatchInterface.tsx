@@ -33,6 +33,17 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
     }
   }, []);
 
+  // Check for URL parameter prompt (takes precedence)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const promptParam = urlParams.get('prompt');
+    if (promptParam) {
+      setPrompt(promptParam);
+      // Clear URL parameter to avoid re-triggering
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+    }
+  }, []);
+
   const checkMatchingStatus = async () => {
     try {
       const token = getToken();
@@ -562,11 +573,11 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
                           bgColor: 'bg-pink-100',
                           iconColor: 'text-pink-600'
                         },
-                        postpartum_stage: {
-                          label: 'Postpartum Stage',
+                        baby_birth_date: {
+                          label: 'Baby\'s Birth Date',
                           icon: (
                             <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           ),
                           bgColor: 'bg-rose-100',

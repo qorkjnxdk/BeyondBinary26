@@ -145,12 +145,18 @@ function calculateProfileCompatibility(userA: User, userB: User): number {
       score += 8;
     }
   }
-  // Postpartum stage similarity (new field) - important for postpartum-focused matching
-  if (userA.postpartum_stage && userB.postpartum_stage) {
-    if (userA.postpartum_stage === userB.postpartum_stage) {
-      score += 15; // High weight - same postpartum stage means very similar experiences
-    } else if (userA.postpartum_stage !== 'Not postpartum' && userB.postpartum_stage !== 'Not postpartum') {
-      score += 5; // Both in postpartum, just different stages
+  // Baby age similarity - important for matching mothers with similar-aged children
+  if (userA.baby_birth_date && userB.baby_birth_date) {
+    const ageA = Math.floor((Date.now() - new Date(userA.baby_birth_date).getTime()) / (1000 * 60 * 60 * 24)); // days
+    const ageB = Math.floor((Date.now() - new Date(userB.baby_birth_date).getTime()) / (1000 * 60 * 60 * 24)); // days
+    const ageDiff = Math.abs(ageA - ageB);
+
+    if (ageDiff <= 30) {
+      score += 15; // Babies within 1 month age - very similar experiences
+    } else if (ageDiff <= 90) {
+      score += 10; // Within 3 months - similar developmental stage
+    } else if (ageDiff <= 180) {
+      score += 5; // Within 6 months - somewhat similar stage
     }
   }
 

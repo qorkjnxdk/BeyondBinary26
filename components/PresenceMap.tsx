@@ -174,9 +174,8 @@ export default function PresenceMap() {
     <div className="bg-white rounded-3xl shadow-soft p-6 border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Live Presence Map</h2>
+          <h2 className="text-xl font-bold text-gray-900"></h2>
           <p className="text-xs text-gray-500">
-            Inspired by Snap Map, showing which areas mums are online in — never exact addresses.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">

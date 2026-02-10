@@ -10,6 +10,7 @@ const profileUpdateSchema = z.object({
   hobbies: z.array(z.string().max(30)).max(10).optional(),
   location: z.string().max(100).optional(),
   has_baby: z.enum(['Yes', 'No', 'Expecting']).optional(),
+  baby_birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   career_field: z.string().max(50).optional(),
   privacy_settings: z.record(z.enum(['anonymous_can_see', 'match_can_see', 'no_one_can_see'])).optional(),
 });

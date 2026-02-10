@@ -16,7 +16,7 @@ export interface User {
   hobbies?: string[];
   location?: string;
   has_baby?: string;
-  postpartum_stage?: string;
+  baby_birth_date?: string | null;
   career_field?: string;
   privacy_settings?: Record<string, string>;
   account_status: string;
@@ -84,7 +84,7 @@ export function createUser(data: {
 }
 
 export function updateUserProfile(userId: string, updates: Partial<User>): void {
-  const allowedFields = ['age', 'marital_status', 'employment', 'hobbies', 'location', 'has_baby', 'postpartum_stage', 'career_field', 'privacy_settings'];
+  const allowedFields = ['age', 'marital_status', 'employment', 'hobbies', 'location', 'has_baby', 'baby_birth_date', 'career_field', 'privacy_settings'];
   const updatesToApply: Record<string, any> = {};
 
   for (const [key, value] of Object.entries(updates)) {

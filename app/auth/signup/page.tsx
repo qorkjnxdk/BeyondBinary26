@@ -13,7 +13,6 @@ const singaporeLocations = [
   'West Region', 'Jurong', 'Clementi', 'Boon Lay', 'Pioneer', 'Tuas',
   'North-East Region', 'Punggol', 'Sengkang', 'Hougang', 'Serangoon', 'Kovan'
 ];
-const postpartumStages = ['Not postpartum', 'First few days', 'First 3 months', '3-12 months', '1+ years'];
 const careerFields = [
   'Technology', 'Healthcare', 'Education', 'Finance', 'Marketing', 'Law', 'Engineering',
   'Design', 'Sales', 'Human Resources', 'Operations', 'Consulting', 'Media', 'Hospitality',
@@ -42,7 +41,7 @@ export default function SignupPage() {
     hobbyInput: '',
     location: '',
     hasBaby: '',
-    postpartumStage: '',
+    babyBirthDate: '',
     careerField: '',
     careerOther: '',
   });
@@ -113,8 +112,8 @@ export default function SignupPage() {
       setError('Please select if you have a baby');
       return false;
     }
-    if (!profile.postpartumStage) {
-      setError('Postpartum stage is required');
+    if ((profile.hasBaby === 'Yes' || profile.hasBaby === 'Expecting') && !profile.babyBirthDate) {
+      setError('Baby birth date is required when you have a baby');
       return false;
     }
     if (!profile.careerField) {
@@ -143,7 +142,7 @@ export default function SignupPage() {
       const privacySettings: Record<string, string> = {
         age: 'anonymous_can_see', // Age is always visible
       };
-      const fields = ['maritalStatus', 'employment', 'hobbies', 'location', 'hasBaby', 'postpartumStage', 'careerField'];
+      const fields = ['maritalStatus', 'employment', 'hobbies', 'location', 'hasBaby', 'careerField'];
       fields.forEach(field => {
         privacySettings[field] = privacy[field] || 'no_one_can_see';
       });
@@ -184,7 +183,7 @@ export default function SignupPage() {
           hobbies: profile.hobbies,
           location: profile.location,
           has_baby: profile.hasBaby,
-          postpartum_stage: profile.postpartumStage,
+          baby_birth_date: profile.babyBirthDate || null,
           career_field: profile.careerField === 'Other' ? profile.careerOther : profile.careerField,
           privacy_settings: privacySettings,
         }),
@@ -494,38 +493,29 @@ export default function SignupPage() {
               </select>
             </div>
 
-            {/* Postpartum Stage */}
-            <div className="border-b border-gray-100 pb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Postpartum Stage <span className="text-red-500">*</span>
-                </label>
-                <button
-                  onClick={() => {
-                    const currentPrivacy = privacy.postpartumStage || 'no_one_can_see';
-                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
-                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
-                    setPrivacy({ ...privacy, postpartumStage: options[nextIndex] });
-                  }}
-                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
-                >
-                  {privacy.postpartumStage === 'anonymous_can_see' ? 'Visible' : privacy.postpartumStage === 'match_can_see' ? 'Friends Only' : 'Hidden'}
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+            {/* Baby Birth Date - Conditional based on has_baby */}
+            {(profile.hasBaby === 'Yes' || profile.hasBaby === 'Expecting') && (
+              <div className="border-b border-gray-100 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-900">
+                    Baby's Birth Date {profile.hasBaby === 'Yes' && <span className="text-red-500">*</span>}
+                    {profile.hasBaby === 'Expecting' && <span className="text-xs text-gray-500 ml-1">(Expected)</span>}
+                  </label>
+                </div>
+                <input
+                  type="date"
+                  value={profile.babyBirthDate}
+                  onChange={(e) => setProfile({ ...profile, babyBirthDate: e.target.value })}
+                  max={profile.hasBaby === 'Yes' ? new Date().toISOString().split('T')[0] : undefined}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {profile.hasBaby === 'Yes'
+                    ? "This helps us provide you with stage-specific support and resources."
+                    : "Enter your expected due date to get relevant pregnancy resources."}
+                </p>
               </div>
-              <select
-                value={profile.postpartumStage}
-                onChange={(e) => setProfile({ ...profile, postpartumStage: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
-              >
-                <option value="">Select</option>
-                {postpartumStages.map(stage => (
-                  <option key={stage} value={stage}>{stage}</option>
-                ))}
-              </select>
-            </div>
+            )}
 
             {/* Career Field */}
             <div className="border-b border-gray-100 pb-4">

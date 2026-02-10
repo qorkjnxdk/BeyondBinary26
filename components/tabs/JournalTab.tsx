@@ -33,6 +33,9 @@ export default function JournalTab({ isActive }: JournalTabProps) {
   // Temporary AI responses (not stored in DB)
   const [aiResponses, setAiResponses] = useState<Record<string, AIResponse>>({});
 
+  // Stage-specific journal prompts
+  const [stagePrompts, setStagePrompts] = useState<string[]>([]);
+
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
 
   useEffect(() => {
@@ -40,6 +43,8 @@ export default function JournalTab({ isActive }: JournalTabProps) {
 
     setLoading(true);
     const token = getToken();
+
+    // Load journal entries
     fetch('/api/journal', {
       headers: { 'Authorization': `Bearer ${token}` },
     })
@@ -49,6 +54,20 @@ export default function JournalTab({ isActive }: JournalTabProps) {
         if (data.entries) setEntries(data.entries);
       })
       .finally(() => setLoading(false));
+
+    // Load stage-specific prompts
+    fetch('/api/baby-journey', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.journey?.current_stage_content?.journal_prompts) {
+          setStagePrompts(data.journey.current_stage_content.journal_prompts);
+        }
+      })
+      .catch(error => {
+        console.log('Baby journey not set up yet or error loading:', error);
+      });
   }, [isActive]);
 
   const handleSave = async () => {
@@ -276,6 +295,27 @@ export default function JournalTab({ isActive }: JournalTabProps) {
         <p className="text-sm text-gray-600 mb-4">
           A quiet space just for you, nothing here is shared. Feel free to answer the prompt or just share your thoughts.
         </p>
+
+        {/* Stage-specific journal prompts */}
+        {stagePrompts.length > 0 && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100">
+            <p className="text-sm font-semibold text-gray-700 mb-2">
+              Prompts for your current stage:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {stagePrompts.map((prompt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setContent(prompt)}
+                  className="px-3 py-1.5 bg-white text-sm text-gray-700 rounded-lg border border-gray-200 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-all"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}

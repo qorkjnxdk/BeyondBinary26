@@ -17,7 +17,7 @@ export default function EditProfilePage() {
     hobbyInput: '',
     location: '',
     has_baby: '',
-    postpartum_stage: '',
+    baby_birth_date: '',
     career_field: '',
     privacy_settings: {},
   });
@@ -46,7 +46,7 @@ export default function EditProfilePage() {
             hobbyInput: '',
             location: data.user.location || '',
             has_baby: data.user.has_baby || '',
-            postpartum_stage: data.user.postpartum_stage || '',
+            baby_birth_date: data.user.baby_birth_date || '',
             career_field: data.user.career_field || '',
             privacy_settings: data.user.privacy_settings || {},
           });
@@ -352,45 +352,29 @@ export default function EditProfilePage() {
               </select>
             </div>
 
-            {/* Postpartum Stage */}
-            <div className="border-b border-gray-100 pb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Postpartum Stage</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const currentPrivacy = profile.privacy_settings?.postpartum_stage || 'no_one_can_see';
-                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
-                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
-                    setProfile({
-                      ...profile,
-                      privacy_settings: {
-                        ...profile.privacy_settings,
-                        postpartum_stage: options[nextIndex],
-                      },
-                    });
-                  }}
-                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
-                >
-                  {profile.privacy_settings?.postpartum_stage === 'anonymous_can_see' ? 'Visible' : profile.privacy_settings?.postpartum_stage === 'match_can_see' ? 'Friends Only' : 'Hidden'}
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+            {/* Baby Birth Date - Conditional based on has_baby */}
+            {(profile.has_baby === 'Yes' || profile.has_baby === 'Expecting') && (
+              <div className="border-b border-gray-100 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-900">
+                    Baby's Birth Date
+                    {profile.has_baby === 'Expecting' && <span className="text-xs text-gray-500 ml-1">(Expected)</span>}
+                  </label>
+                </div>
+                <input
+                  type="date"
+                  value={profile.baby_birth_date}
+                  onChange={(e) => setProfile({ ...profile, baby_birth_date: e.target.value })}
+                  max={profile.has_baby === 'Yes' ? new Date().toISOString().split('T')[0] : undefined}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {profile.has_baby === 'Yes'
+                    ? "This helps us provide you with stage-specific support and resources in the Baby Journey tab."
+                    : "Enter your expected due date to get relevant pregnancy resources."}
+                </p>
               </div>
-              <select
-                value={profile.postpartum_stage}
-                onChange={(e) => setProfile({ ...profile, postpartum_stage: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
-              >
-                <option value="">Select</option>
-                <option value="Not postpartum">Not postpartum</option>
-                <option value="First few days">First few days</option>
-                <option value="First 3 months">First 3 months</option>
-                <option value="3-12 months">3-12 months</option>
-                <option value="1+ years">1+ years</option>
-              </select>
-            </div>
+            )}
 
             {/* Hobbies */}
             <div className="border-b border-gray-100 pb-4">

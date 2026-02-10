@@ -10,6 +10,7 @@ import ChatTab from '@/components/tabs/ChatTab';
 import MapTab from '@/components/tabs/MapTab';
 import JournalTab from '@/components/tabs/JournalTab';
 import HabitsTab from '@/components/tabs/HabitsTab';
+import BabyJourneyTab from '@/components/tabs/BabyJourneyTab';
 
 function NotificationButton({ onOpenNotifications }: { onOpenNotifications: () => void }) {
   const [notificationCount, setNotificationCount] = useState(0);
@@ -110,7 +111,7 @@ export default function DashboardPage() {
   const [activeChat, setActiveChat] = useState<any>(null);
   const [showFriends, setShowFriends] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chat' | 'map' | 'journal' | 'habits'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'map' | 'journal' | 'habits' | 'babyJourney'>('babyJourney');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -283,6 +284,16 @@ export default function DashboardPage() {
         <div className="sticky top-0 z-20 px-6 pt-3 pb-2 bg-white/95 backdrop-blur border-b border-gray-100">
           <div className="flex flex-wrap gap-2">
             <button
+              onClick={() => setActiveTab('babyJourney')}
+              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+                activeTab === 'babyJourney'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              Baby Journey
+            </button>
+            <button
               onClick={() => setActiveTab('chat')}
               className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
                 activeTab === 'chat'
@@ -334,8 +345,10 @@ export default function DashboardPage() {
           {activeTab === 'map' && <MapTab />}
           
           {activeTab === 'journal' && <JournalTab isActive={activeTab === 'journal'} />}
-          
+
           {activeTab === 'habits' && <HabitsTab isActive={activeTab === 'habits'} />}
+
+          {activeTab === 'babyJourney' && <BabyJourneyTab isActive={activeTab === 'babyJourney'} />}
         </div>
       </div>
     </div>
