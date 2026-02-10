@@ -1,0 +1,36 @@
+export const singaporeLatLng: Record<string, { lat: number; lng: number }> = {
+    "Central Region": { lat: 1.290, lng: 103.852 },
+    "Orchard": { lat: 1.304, lng: 103.832 },
+    "Marina Bay": { lat: 1.283, lng: 103.860 },
+    "Chinatown": { lat: 1.283, lng: 103.843 },
+    "Little India": { lat: 1.306, lng: 103.851 },
+    "Clarke Quay": { lat: 1.289, lng: 103.846 },
+
+    "North Region": { lat: 1.418, lng: 103.820 },
+    "Woodlands": { lat: 1.436, lng: 103.786 },
+    "Yishun": { lat: 1.429, lng: 103.835 },
+    "Sembawang": { lat: 1.449, lng: 103.820 },
+    "Ang Mo Kio": { lat: 1.370, lng: 103.849 },
+    "Bishan": { lat: 1.350, lng: 103.848 },
+
+    "East Region": { lat: 1.350, lng: 103.940 },
+    "Tampines": { lat: 1.354, lng: 103.944 },
+    "Pasir Ris": { lat: 1.373, lng: 103.950 },
+    "Bedok": { lat: 1.324, lng: 103.931 },
+    "Changi": { lat: 1.364, lng: 103.991 },
+    "Simei": { lat: 1.343, lng: 103.954 },
+
+    "West Region": { lat: 1.335, lng: 103.720 },
+    "Jurong": { lat: 1.333, lng: 103.743 },
+    "Clementi": { lat: 1.315, lng: 103.765 },
+    "Boon Lay": { lat: 1.338, lng: 103.706 },
+    "Pioneer": { lat: 1.337, lng: 103.697 },
+    "Tuas": { lat: 1.329, lng: 103.639 },
+
+    "North-East Region": { lat: 1.385, lng: 103.890 },
+    "Punggol": { lat: 1.405, lng: 103.902 },
+    "Sengkang": { lat: 1.392, lng: 103.895 },
+    "Hougang": { lat: 1.362, lng: 103.887 },
+    "Serangoon": { lat: 1.349, lng: 103.873 },
+    "Kovan": { lat: 1.360, lng: 103.886 },
+};
