@@ -17,9 +17,110 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false); // Track if user is in matching mode
   const socketRef = useRef<Socket | null>(null);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
+
+  // Load prompt from localStorage on mount
+  useEffect(() => {
+    const savedPrompt = localStorage.getItem('currentPrompt');
+    if (savedPrompt) {
+      setPrompt(savedPrompt);
+      // Check if we're still in matching mode
+      checkMatchingStatus();
+    }
+  }, []);
+
+  const checkMatchingStatus = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch('/api/matches', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.prompt) {
+        setIsSearching(true);
+        setMatches(data.matches || []);
+        setPrompt(data.prompt);
+        localStorage.setItem('currentPrompt', data.prompt);
+        startAutoRefresh();
+      }
+    } catch (error) {
+      console.error('Error checking matching status:', error);
+    }
+  };
+
+  const startAutoRefresh = () => {
+    // Clear any existing interval
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+    }
+
+    // Refresh every 2 seconds
+    refreshIntervalRef.current = setInterval(async () => {
+      await refreshMatches();
+    }, 2000);
+  };
+
+  const stopAutoRefresh = () => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+  };
+
+  const refreshMatches = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch('/api/matches', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.matches) {
+        setMatches(data.matches);
+      }
+    } catch (error) {
+      console.error('Error refreshing matches:', error);
+    }
+  };
+
+  const leaveMatching = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      await fetch('/api/matches', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      // Clear state
+      setIsSearching(false);
+      setMatches([]);
+      setPrompt('');
+      localStorage.removeItem('currentPrompt');
+      stopAutoRefresh();
+    } catch (error) {
+      console.error('Error leaving matching mode:', error);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopAutoRefresh();
+    };
+  }, []);
 
   const findMatches = async () => {
     if (!prompt.trim()) {
@@ -58,6 +159,13 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
 
       if (data.matches && Array.isArray(data.matches)) {
         setMatches(data.matches);
+        // Save prompt to localStorage
+        localStorage.setItem('currentPrompt', prompt.trim());
+        // Enter matching mode
+        setIsSearching(true);
+        // Start auto-refresh
+        startAutoRefresh();
+        
         if (data.matches.length === 0) {
           console.log('No matches found');
         }
@@ -132,6 +240,8 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
       }
 
       if (data.session) {
+        // Clear matching status and stop auto-refresh
+        await leaveMatching();
         onMatchAccepted(data.session);
       } else {
         console.error('No session returned from accept invite');
@@ -204,12 +314,13 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         });
 
         // Listen for invite acceptance (someone accepted our invite)
-        socket.on('invite-accepted', (data: any) => {
+        socket.on('invite-accepted', async (data: any) => {
           if (!mounted) return;
           // Remove the invite from sent invites
           setInvites((prev) => prev.filter((i) => i.invite_id !== data.inviteId));
-          // Start the chat session
+          // Clear matching status and start the chat session
           if (data.session) {
+            await leaveMatching();
             onMatchAccepted(data.session);
           }
         });
@@ -254,42 +365,69 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
     <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-8 max-w-6xl mx-auto w-full">
       <div className="w-full space-y-6">
         {/* Prompt Input */}
-        <div className="bg-white rounded-2xl shadow-soft p-6 md:p-8 border border-gray-100 card-hover">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">What's on your mind?</h2>
-            <p className="text-gray-600">Share what you'd like to talk about and find like-minded women</p>
+        {!isSearching ? (
+          <div className="bg-white rounded-2xl shadow-soft p-6 md:p-8 border border-gray-100 card-hover">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">What's on your mind?</h2>
+              <p className="text-gray-600">Share what you'd like to talk about and find like-minded women</p>
+            </div>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              maxLength={280}
+              placeholder="e.g., Need advice on dealing with difficult boss, Want to talk about work-life balance, Looking for hiking buddies..."
+              className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none resize-none text-gray-900 placeholder-gray-400"
+              rows={4}
+            />
+            <div className="flex items-center justify-between mt-4">
+              <span className={`text-sm font-medium ${prompt.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
+                {prompt.length}/280
+              </span>
+              <button
+                onClick={findMatches}
+                disabled={loading || !prompt.trim()}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Finding Matches...
+                  </span>
+                ) : (
+                  'Find Matches'
+                )}
+              </button>
+            </div>
           </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            maxLength={280}
-            placeholder="e.g., Need advice on dealing with difficult boss, Want to talk about work-life balance, Looking for hiking buddies..."
-            className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none resize-none text-gray-900 placeholder-gray-400"
-            rows={4}
-          />
-          <div className="flex items-center justify-between mt-4">
-            <span className={`text-sm font-medium ${prompt.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
-              {prompt.length}/280
-            </span>
-            <button
-              onClick={findMatches}
-              disabled={loading || !prompt.trim()}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Finding Matches...
-                </span>
-              ) : (
-                'Find Matches'
-              )}
-            </button>
+        ) : (
+          <div className="bg-gradient-to-r from-primary-50 to-accent-50 rounded-2xl shadow-soft p-6 md:p-8 border-2 border-primary-200">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-3 h-3 bg-primary-500 rounded-full animate-pulse"></div>
+                  <h2 className="text-xl font-bold text-gray-900">Searching for matches...</h2>
+                </div>
+                <p className="text-gray-700 bg-white/50 rounded-lg p-3 border border-primary-100 italic">
+                  "{prompt}"
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  {matches.length > 0 
+                    ? `Found ${matches.length} ${matches.length === 1 ? 'match' : 'matches'} online` 
+                    : 'No one online right now, we will keep trying...'}
+                </p>
+              </div>
+              <button
+                onClick={leaveMatching}
+                className="ml-4 px-6 py-3 bg-white text-gray-700 rounded-xl hover:bg-gray-50 border-2 border-gray-200 font-medium transition-all shadow-sm hover:shadow"
+              >
+                Leave
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Incoming Invites */}
         {invites.length > 0 && (
@@ -328,14 +466,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         )}
 
         {/* Match Results */}
-        {!loading && matches.length === 0 && prompt && (
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 text-center">
-            <p className="text-gray-700 font-medium">
-              No matches online right now. Try again later or adjust your prompt.
-            </p>
-          </div>
-        )}
-        {matches.length > 0 && (
+        {isSearching && matches.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-gray-900">

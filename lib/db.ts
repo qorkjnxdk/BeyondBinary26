@@ -214,9 +214,17 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS online_users (
       user_id TEXT PRIMARY KEY,
       last_ping INTEGER NOT NULL,
+      matching_prompt TEXT,
       FOREIGN KEY (user_id) REFERENCES users(user_id)
     )
   `);
+  
+  // Add matching_prompt column if it doesn't exist
+  try {
+    db.exec(`ALTER TABLE online_users ADD COLUMN matching_prompt TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   // Create indexes
   db.exec(`
@@ -233,6 +241,18 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_journal_user_created ON journal_entries(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_habit_logs_user_created ON habit_logs(user_id, created_at);
   `);
+
+  // Automatic cleanup on startup
+  try {
+    // Remove orphaned online_users (users that don't exist in users table)
+    db.exec(`DELETE FROM online_users WHERE user_id NOT IN (SELECT user_id FROM users)`);
+    
+    // Remove stale online_users (older than 1 hour)
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    db.prepare('DELETE FROM online_users WHERE last_ping < ?').run(oneHourAgo);
+  } catch (e) {
+    console.error('Cleanup error:', e);
+  }
 }
 
 // Initialize on import

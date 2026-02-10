@@ -118,20 +118,66 @@ export function updateLastActive(userId: string): void {
   }
 }
 
+export function setMatchingStatus(userId: string, prompt: string): void {
+  updateLastActive(userId);
+  db.prepare('UPDATE online_users SET matching_prompt = ? WHERE user_id = ?').run(prompt, userId);
+}
+
+export function clearMatchingStatus(userId: string): void {
+  db.prepare('UPDATE online_users SET matching_prompt = NULL WHERE user_id = ?').run(userId);
+}
+
+export function getMatchingUsers(excludeUserId?: string): User[] {
+  // Get users who are actively looking for matches (have a matching_prompt set)
+  const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+  let query = `
+    SELECT u.*, ou.matching_prompt as current_prompt FROM users u
+    INNER JOIN online_users ou ON u.user_id = ou.user_id
+    WHERE ou.last_ping > ? 
+      AND ou.matching_prompt IS NOT NULL
+      AND u.account_status = 'active'
+  `;
+  const params: any[] = [twoMinutesAgo];
+
+  if (excludeUserId) {
+    query += ' AND u.user_id != ?';
+    params.push(excludeUserId);
+  }
+
+  const users = db.prepare(query).all(...params) as any[];
+  return users.map(user => ({
+    user_id: user.user_id,
+    email: user.email,
+    real_name: user.real_name,
+    gender: user.gender,
+    age: user.age,
+    marital_status: user.marital_status,
+    employment: user.employment,
+    hobbies: user.hobbies ? JSON.parse(user.hobbies) : [],
+    location: user.location,
+    has_baby: user.has_baby,
+    postpartum_stage: user.postpartum_stage,
+    career_field: user.career_field,
+    privacy_settings: user.privacy_settings ? JSON.parse(user.privacy_settings) : {},
+    account_status: user.account_status,
+    penalty_end_date: user.penalty_end_date,
+  }));
+}
+
 // Update user's current active prompt (shown to others when they're looking for matches)
 export function updateCurrentPrompt(userId: string, prompt: string | null): void {
   db.prepare('UPDATE users SET current_prompt = ? WHERE user_id = ?').run(prompt, userId);
 }
 
 export function getOnlineUsers(excludeUserId?: string): User[] {
-  // Extended to 30 minutes for testing - users who have been active in last 30 minutes
-  const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
+  // Users active in last 2 minutes are considered online
+  const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
   let query = `
     SELECT u.* FROM users u
     INNER JOIN online_users ou ON u.user_id = ou.user_id
     WHERE ou.last_ping > ? AND u.account_status = 'active'
   `;
-  const params: any[] = [thirtyMinutesAgo];
+  const params: any[] = [twoMinutesAgo];
 
   if (excludeUserId) {
     query += ' AND u.user_id != ?';

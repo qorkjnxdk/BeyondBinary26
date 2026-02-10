@@ -63,6 +63,30 @@ export default function FriendList({
     }
   };
 
+  const handleRemoveFriend = async (friendId: string, friendName: string) => {
+    const confirmed = window.confirm(`Remove ${friendName} as a friend? This will also delete your chat history with her.`);
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/friends?friendId=${encodeURIComponent(friendId)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        console.error('Failed to remove friend:', data);
+        alert(data.error || 'Failed to remove friend');
+        return;
+      }
+      // Refresh friends + unread counts
+      loadFriends();
+      loadUnreadCounts();
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      alert('An error occurred while removing friend. Please try again.');
+    }
+  };
+
   const loadFriendRequests = async () => {
     try {
       const response = await fetch('/api/friend-requests?type=received', {
@@ -240,24 +264,34 @@ export default function FriendList({
               {onlineFriends.map((friend) => (
                 <div
                   key={friend.userId}
-                  onClick={() => onSelectFriend(friend.userId)}
-                  className="p-4 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm relative"
+                  className="p-4 rounded-xl hover:bg-gray-50 flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm relative"
                 >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                    {friend.realName.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-gray-900 truncate">{friend.realName}</div>
-                    <div className="text-sm text-green-600 font-medium flex items-center gap-1">
-                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                      Online now
+                  <div
+                    onClick={() => onSelectFriend(friend.userId)}
+                    className="flex items-center gap-4 cursor-pointer flex-1 min-w-0"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                      {friend.realName.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 truncate">{friend.realName}</div>
+                      <div className="text-sm text-green-600 font-medium flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Online now
+                      </div>
                     </div>
                   </div>
                   {unreadCounts[friend.userId] && unreadCounts[friend.userId] > 0 && (
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg">
+                    <div className="absolute top-2 right-10 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg">
                       {unreadCounts[friend.userId] > 9 ? '9+' : unreadCounts[friend.userId]}
                     </div>
                   )}
+                  <button
+                    onClick={() => handleRemoveFriend(friend.userId, friend.realName)}
+                    className="px-3 py-1.5 text-xs rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium"
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>
@@ -269,25 +303,35 @@ export default function FriendList({
               {offlineFriends.map((friend) => (
                 <div
                   key={friend.userId}
-                  onClick={() => onSelectFriend(friend.userId)}
-                  className="p-4 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm relative"
+                  className="p-4 rounded-xl hover:bg-gray-50 flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm relative"
                 >
-                  <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg flex-shrink-0">
-                    {friend.realName.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-gray-900 truncate">{friend.realName}</div>
-                    <div className="text-sm text-gray-500">
-                      {friend.lastActive
-                        ? `Last active ${new Date(friend.lastActive).toLocaleDateString()}`
-                        : 'Never active'}
+                  <div
+                    onClick={() => onSelectFriend(friend.userId)}
+                    className="flex items-center gap-4 cursor-pointer flex-1 min-w-0"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg flex-shrink-0">
+                      {friend.realName.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 truncate">{friend.realName}</div>
+                      <div className="text-sm text-gray-500">
+                        {friend.lastActive
+                          ? `Last active ${new Date(friend.lastActive).toLocaleDateString()}`
+                          : 'Never active'}
+                      </div>
                     </div>
                   </div>
                   {unreadCounts[friend.userId] && unreadCounts[friend.userId] > 0 && (
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg">
+                    <div className="absolute top-2 right-10 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg">
                       {unreadCounts[friend.userId] > 9 ? '9+' : unreadCounts[friend.userId]}
                     </div>
                   )}
+                  <button
+                    onClick={() => handleRemoveFriend(friend.userId, friend.realName)}
+                    className="px-3 py-1.5 text-xs rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium"
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>

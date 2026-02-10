@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const io = getIO();
     if (io) {
       const { getUserById } = await import('@/lib/auth');
-      const { generateRandomName } = await import('@/lib/matching');
+      const { generateStableAlias } = await import('@/lib/matching');
       const sender = getUserById(userId);
 
       if (sender) {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
           ...invite,
           otherUser: {
             userId: sender.user_id,
-            randomName: generateRandomName(),
+            randomName: generateStableAlias(validated.receiverId, sender.user_id),
           },
         });
       }
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     // Enrich with sender/receiver info
     const { getUserById } = await import('@/lib/auth');
-    const { getVisibleProfileData, generateRandomName } = await import('@/lib/matching');
+    const { getVisibleProfileData, generateStableAlias } = await import('@/lib/matching');
     
     const enrichedInvites = invites.map((invite) => {
       const otherUserId = type === 'sent' ? invite.receiver_id : invite.sender_id;
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         ...invite,
         otherUser: {
           userId: otherUser.user_id,
-          randomName: generateRandomName(),
+          randomName: generateStableAlias(userId, otherUser.user_id),
           visibleProfile: visibleData,
         },
       };

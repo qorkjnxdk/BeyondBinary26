@@ -1,5 +1,5 @@
 import db from './db';
-import { getOnlineUsers, getUserById, updateLastActive, type User } from './auth';
+import { getUserById, updateLastActive, type User } from './auth';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface MatchResult {
@@ -8,13 +8,28 @@ export interface MatchResult {
   randomName: string;
 }
 
-// Generate random username for matching
-export function generateRandomName(): string {
+// Simple string hash for deterministic alias generation
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+// Deterministic alias for a viewer + other user pair
+export function generateStableAlias(viewerId: string, otherUserId: string): string {
   const colors = ['Blue', 'Green', 'Purple', 'Pink', 'Red', 'Orange', 'Yellow', 'Teal', 'Indigo', 'Violet'];
   const nouns = ['Butterfly', 'Ocean', 'Cloud', 'Star', 'Moon', 'Sun', 'River', 'Mountain', 'Forest', 'Flower'];
-  const number = Math.floor(Math.random() * 100);
-  const color = colors[Math.floor(Math.random() * colors.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+
+  const combined = `${viewerId}-${otherUserId}`;
+  const hash = hashString(combined);
+
+  const color = colors[hash % colors.length];
+  const noun = nouns[Math.floor(hash / colors.length) % nouns.length];
+  const number = (hash % 90) + 10; // 10–99
+
   return `${color}${noun}${number}`;
 }
 
@@ -267,29 +282,11 @@ export function findMatches(userId: string, prompt: string): MatchResult[] {
     // Update user's last active to mark them as online
     updateLastActive(userId);
 
-    // Get eligible candidates
-    let onlineUsers = getOnlineUsers(userId);
-    console.log('[MATCHING] Online users found:', onlineUsers.length);
-    console.log('[MATCHING] Online user IDs:', onlineUsers.map(u => u.user_id));
-    
-    // For testing: if no online users, also check users who have logged in recently (last 1 hour)
-    if (onlineUsers.length === 0) {
-      console.log('[MATCHING] No online users, checking recently active users...');
-      const oneHourAgo = Date.now() - 60 * 60 * 1000;
-      const recentUsers = db.prepare(`
-        SELECT u.* FROM users u
-        WHERE u.last_active > ? AND u.account_status = 'active' AND u.user_id != ?
-      `).all(oneHourAgo, userId) as any[];
-      
-      console.log('[MATCHING] Recently active users (raw):', recentUsers.length);
-      onlineUsers = recentUsers.map(user => ({
-        ...user,
-        hobbies: user.hobbies ? JSON.parse(user.hobbies) : [],
-        privacy_settings: user.privacy_settings ? JSON.parse(user.privacy_settings) : {},
-      }));
-      console.log('[MATCHING] Recently active users found:', onlineUsers.length);
-      console.log('[MATCHING] Recently active user IDs:', onlineUsers.map(u => u.user_id));
-    }
+    // Get eligible candidates - only users actively looking for matches
+    const { getMatchingUsers } = require('./auth');
+    let onlineUsers = getMatchingUsers(userId);
+    console.log('[MATCHING] Users actively looking for matches:', onlineUsers.length);
+    console.log('[MATCHING] Matching user IDs:', onlineUsers.map(u => u.user_id));
     
     // Log total users in database for debugging
     const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE account_status = ?').get('active') as { count: number };
@@ -353,12 +350,12 @@ export function findMatches(userId: string, prompt: string): MatchResult[] {
   scoredCandidates.sort((a, b) => b.score - a.score);
   const topCandidates = scoredCandidates.slice(0, 5);
 
-    // Convert to MatchResult with random names
-    return topCandidates.map(({ user, score }) => ({
-      user,
-      similarityScore: Math.max(0, Math.min(100, Math.round(score * 100))), // 0-100% based on actual score
-      randomName: generateRandomName(),
-    }));
+  // Convert to MatchResult with deterministic aliases so names don't change on refresh
+  return topCandidates.map(({ user, score }) => ({
+    user,
+    similarityScore: Math.max(0, Math.min(100, Math.round(score * 100))), // 0–100% based on actual score
+    randomName: generateStableAlias(userId, user.user_id),
+  }));
   } catch (error) {
     console.error('Error in findMatches:', error);
     return [];
