@@ -71,6 +71,14 @@ export async function GET(request: NextRequest) {
     const continueRequestedBy = sessionData?.continue_requested_by || null;
     const friendRequestedBy = sessionData?.friend_requested_by || null;
 
+    // If this is a friend chat or became friends, get real names
+    const isFriendChat = session.session_type === 'friend' || session.became_friends;
+    let otherUser = null;
+    if (isFriendChat) {
+      const { getUserById } = await import('@/lib/auth');
+      otherUser = getUserById(otherUserId);
+    }
+
     return NextResponse.json({
       session: {
         ...session,
@@ -82,6 +90,7 @@ export async function GET(request: NextRequest) {
         friendRequestedBy: friendRequestedBy,
       },
       messages,
+      otherUser: otherUser ? { real_name: otherUser.real_name } : null,
     });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -177,9 +186,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true });
     } else if (action === 'early-exit-request') {
       const elapsed = Date.now() - session.started_at;
-      const twoMinutes = 2 * 60 * 1000; // Changed to 2 minutes for testing
+      const thirtySeconds = 30 * 1000; // Changed to 30 seconds for testing
 
-      if (elapsed < twoMinutes) {
+      if (elapsed < thirtySeconds) {
         // Store early exit request in database
         db.prepare('UPDATE chat_sessions SET early_exit_requested_by = ? WHERE session_id = ?').run(userId, sessionId);
 

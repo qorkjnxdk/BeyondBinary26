@@ -10,7 +10,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { receiverId, sessionId } = body;
 
+    console.log('[API] Friend request POST:', { userId, receiverId, sessionId });
+
     if (!receiverId) {
+      console.error('[API] Missing receiverId');
       return NextResponse.json(
         { error: 'receiverId is required' },
         { status: 400 }
@@ -19,6 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Check if already friends
     if (areFriends(userId, receiverId)) {
+      console.log('[API] Users are already friends');
       return NextResponse.json(
         { error: 'You are already friends with this user' },
         { status: 400 }
@@ -26,10 +30,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Send friend request
+    console.log('[API] Sending friend request...');
     const friendRequest = sendFriendRequest(userId, receiverId, sessionId);
+    console.log('[API] Friend request created:', friendRequest.request_id);
 
-    return NextResponse.json({ friendRequest });
+    return NextResponse.json({ 
+      success: true,
+      friendRequest 
+    });
   } catch (error: any) {
+    console.error('[API] Error in POST /api/friend-requests:', error);
     if (error.message === 'Unauthorized') {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -116,6 +126,18 @@ export async function PATCH(request: NextRequest) {
       // Create friendship
       if (!areFriends(friendRequest.sender_id, friendRequest.receiver_id)) {
         createFriendship(friendRequest.sender_id, friendRequest.receiver_id, friendRequest.session_id || undefined);
+      }
+
+      // If there's a session_id, mark it as became_friends and preserve messages
+      if (friendRequest.session_id) {
+        db.prepare(`
+          UPDATE chat_sessions
+          SET became_friends = 1, session_type = 'friend'
+          WHERE session_id = ?
+        `).run(friendRequest.session_id);
+        
+        // Ensure messages are not deleted (they should already be preserved, but just in case)
+        db.prepare('UPDATE messages SET is_deleted = 0 WHERE session_id = ?').run(friendRequest.session_id);
       }
 
       return NextResponse.json({ success: true, message: 'Friend request accepted' });
