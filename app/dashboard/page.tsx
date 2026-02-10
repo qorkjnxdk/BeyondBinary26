@@ -8,6 +8,7 @@ import MatchInterface from '@/components/MatchInterface';
 import FriendList from '@/components/FriendList';
 import Notifications from '@/components/Notifications';
 import PresenceMap from '@/components/PresenceMap';
+import type { HabitType } from '@/lib/habits';
 
 function NotificationButton({ onOpenNotifications }: { onOpenNotifications: () => void }) {
   const [notificationCount, setNotificationCount] = useState(0);
@@ -102,14 +103,38 @@ function FriendRequestButton({ onOpenFriends }: { onOpenFriends: () => void }) {
   );
 }
 
+interface JournalEntry {
+  entry_id: string;
+  content: string;
+  sentiment: number | null;
+  created_at: number;
+}
+
+interface HabitSummary {
+  id: HabitType;
+  label: string;
+  completed: boolean;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [activeChat, setActiveChat] = useState<any>(null);
   const [showFriends, setShowFriends] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chat' | 'map'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'map' | 'journal' | 'habits'>('chat');
   const [loading, setLoading] = useState(true);
+  
+  // Journal state
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [journalContent, setJournalContent] = useState('');
+  const [journalLoading, setJournalLoading] = useState(false);
+  const [journalSaving, setJournalSaving] = useState(false);
+  
+  // Habits state
+  const [habits, setHabits] = useState<HabitSummary[]>([]);
+  const [habitsLoading, setHabitsLoading] = useState(false);
+  const [habitSavingId, setHabitSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -150,6 +175,108 @@ export default function DashboardPage() {
       })
       .catch(console.error);
   }, [user]);
+
+  // Load journal entries when journal tab is active
+  useEffect(() => {
+    if (activeTab !== 'journal' || !user) return;
+    
+    setJournalLoading(true);
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('/api/journal', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.entries) setJournalEntries(data.entries);
+      })
+      .finally(() => setJournalLoading(false));
+  }, [activeTab, user]);
+
+  // Load habits when habits tab is active
+  useEffect(() => {
+    if (activeTab !== 'habits' || !user) return;
+    
+    setHabitsLoading(true);
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('/api/habits', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.habits) setHabits(data.habits);
+      })
+      .finally(() => setHabitsLoading(false));
+  }, [activeTab, user]);
+
+  // Journal handlers
+  const handleSaveJournal = async () => {
+    if (!journalContent.trim()) return;
+    setJournalSaving(true);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const res = await fetch('/api/journal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: journalContent }),
+      });
+      const data = await res.json();
+      if (res.ok && data.entry) {
+        setJournalEntries([data.entry, ...journalEntries]);
+        setJournalContent('');
+      } else {
+        alert(data.error || 'Failed to save entry');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error saving entry');
+    } finally {
+      setJournalSaving(false);
+    }
+  };
+
+  const sentimentLabel = (score: number | null) => {
+    if (score === null) return '';
+    if (score > 0) return 'Gentle positive tone';
+    if (score < 0) return 'Sounds heavy today';
+    return 'Neutral tone';
+  };
+
+  // Habits handlers
+  const toggleHabit = async (habitId: HabitType) => {
+    setHabitSavingId(habitId);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const res = await fetch('/api/habits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ habitType: habitId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Failed to log habit');
+      } else {
+        // Reload habits
+        fetch('/api/habits', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.habits) setHabits(data.habits);
+          });
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error logging habit');
+    } finally {
+      setHabitSavingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -300,18 +427,26 @@ export default function DashboardPage() {
             >
               Presence Map
             </button>
-            <Link
-              href="/journal"
-              className="px-4 py-2 text-sm rounded-full font-semibold transition-all border bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+            <button
+              onClick={() => setActiveTab('journal')}
+              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+                activeTab === 'journal'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
             >
               Journal
-            </Link>
-            <Link
-              href="/habits"
-              className="px-4 py-2 text-sm rounded-full font-semibold transition-all border bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+            </button>
+            <button
+              onClick={() => setActiveTab('habits')}
+              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+                activeTab === 'habits'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
             >
               Habits
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -322,6 +457,7 @@ export default function DashboardPage() {
               onMatchAccepted={(session) => setActiveChat(session)}
             />
           )}
+          
           {activeTab === 'map' && (
             <div>
               <div className="mb-6">
@@ -333,6 +469,97 @@ export default function DashboardPage() {
                 </p>
               </div>
               <PresenceMap />
+            </div>
+          )}
+          
+          {activeTab === 'journal' && (
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-white rounded-2xl shadow-soft p-8 border border-gray-100 mb-6">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2">
+                  Private Journal
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  A quiet space just for you. Nothing here is shared or used for matching.
+                </p>
+                <textarea
+                  value={journalContent}
+                  onChange={(e) => setJournalContent(e.target.value)}
+                  placeholder="How are you really feeling today?"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900 placeholder-gray-400 min-h-[120px]"
+                />
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={handleSaveJournal}
+                    disabled={journalSaving || !journalContent.trim()}
+                    className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {journalSaving ? 'Saving...' : 'Save Entry'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {journalLoading ? (
+                  <p className="text-gray-600">Loading entries...</p>
+                ) : journalEntries.length === 0 ? (
+                  <p className="text-gray-500">No entries yet. Start with a small note to yourself.</p>
+                ) : (
+                  journalEntries.map((entry) => (
+                    <div key={entry.entry_id} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500">
+                          {new Date(entry.created_at).toLocaleString()}
+                        </span>
+                        {entry.sentiment !== null && (
+                          <span className="text-xs font-medium text-gray-600">
+                            {sentimentLabel(entry.sentiment)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-800 whitespace-pre-line text-sm leading-relaxed">{entry.content}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'habits' && (
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-white rounded-2xl shadow-soft p-8 border border-gray-100 mb-6">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2">
+                  Gentle Habit Check-in
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Small physical check-ins that support your mood. No streaks, no pressure.
+                </p>
+
+                {habitsLoading ? (
+                  <p className="text-gray-600">Loading habits...</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {habits.map(habit => (
+                      <button
+                        key={habit.id}
+                        onClick={() => toggleHabit(habit.id)}
+                        disabled={habitSavingId === habit.id}
+                        className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                          habit.completed
+                            ? 'bg-green-50 border-green-300 text-green-800'
+                            : 'bg-white border-gray-200 text-gray-800 hover:border-primary-300 hover:bg-primary-50'
+                        }`}
+                      >
+                        <span className="text-sm font-semibold mr-3">{habit.label}</span>
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          habit.completed ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {habit.completed ? '✓' : '+'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
