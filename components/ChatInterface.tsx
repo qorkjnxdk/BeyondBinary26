@@ -108,8 +108,18 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
     };
   }, [session.session_id]);
 
+  // Determine if this is a friend chat (no minimum time restrictions, show real names)
+  const isFriendChat = session.session_type === 'friend' || session.became_friends;
+
   useEffect(() => {
-    // Timer countdown - 30 seconds for testing
+    // Skip timer for friend chats - they can leave anytime
+    if (isFriendChat) {
+      setMinimumTimeMet(true);
+      setTimeRemaining(0);
+      return;
+    }
+
+    // Timer countdown - 30 seconds for testing (only for anonymous chats)
     const elapsed = Math.floor((Date.now() - session.started_at) / 1000);
     const remaining = Math.max(0, 30 - elapsed);
     setTimeRemaining(remaining);
@@ -131,7 +141,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [session.started_at, minimumTimeMet]);
+  }, [session.started_at, minimumTimeMet, isFriendChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -146,6 +156,12 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       if (data.messages) {
         setMessages(data.messages);
       }
+      
+      // If friend chat, get real name from API response
+      if (data.otherUser && data.otherUser.real_name) {
+        setOtherUserRealName(data.otherUser.real_name);
+      }
+      
       // Check for early exit request from other user
       if (data.session?.earlyExitRequestedBy && !earlyExitApproval?.waiting) {
         setEarlyExitApproval({ waiting: false, requestedBy: data.session.earlyExitRequestedBy });
@@ -427,8 +443,19 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const otherUserName = session.otherRandomName || 'Unknown';
-  const myRandomName = session.myRandomName || session.user_a_random_name || session.user_b_random_name || 'You';
+  // Determine if we should show real names (if friends or became friends)
+  // Note: isFriendChat is already defined above
+  const otherUserId = session.user_a_id === user.user_id ? session.user_b_id : session.user_a_id;
+  
+  // Get real names if friend chat, otherwise use random names
+  const [otherUserRealName, setOtherUserRealName] = useState<string | null>(null);
+
+
+  const otherUserName = isFriendChat && otherUserRealName 
+    ? otherUserRealName 
+    : (session.otherRandomName || 'Unknown');
+  const myRealName = isFriendChat ? user.real_name : null;
+  const displayMyName = myRealName || (session.myRandomName || session.user_a_random_name || session.user_b_random_name || 'You');
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
@@ -448,7 +475,12 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           </div>
           <div>
             <h2 className="font-bold text-gray-900 text-lg">{otherUserName}</h2>
-            {minimumTimeMet ? (
+            {isFriendChat ? (
+              <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                Friend Chat
+              </span>
+            ) : minimumTimeMet ? (
               <span className="text-xs text-green-600 font-medium flex items-center gap-1">
                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                 Minimum time reached
@@ -484,6 +516,12 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         )}
         {messages.map((message) => {
           const isMine = message.sender_id === user.user_id;
+          // Use real name if friend chat, otherwise use random name
+          const senderName = isMine 
+            ? displayMyName
+            : (isFriendChat && otherUserRealName ? otherUserRealName : otherUserName);
+          const senderInitial = senderName.charAt(0);
+          
           return (
             <div
               key={message.message_id}
@@ -491,7 +529,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
             >
               {!isMine && (
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-300 to-accent-300 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {otherUserName.charAt(0)}
+                  {senderInitial}
                 </div>
               )}
               <div
@@ -502,7 +540,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
                 }`}
               >
                 {!isMine && (
-                  <div className="text-xs font-bold mb-1 text-gray-600">{otherUserName}</div>
+                  <div className="text-xs font-bold mb-1 text-gray-600">{senderName}</div>
                 )}
                 <div className={`${isMine ? 'text-white' : 'text-gray-900'} leading-relaxed`}>{message.message_text}</div>
                 <div className={`text-xs mt-2 ${isMine ? 'text-primary-100' : 'text-gray-500'}`}>
@@ -511,7 +549,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
               </div>
               {isMine && (
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {myRandomName.charAt(0)}
+                  {senderInitial}
                 </div>
               )}
             </div>
@@ -522,7 +560,8 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
 
       {/* Input Area */}
       <div className="bg-white border-t border-gray-100 p-6 shadow-lg">
-        {showContinuePrompt && (
+        {/* Continue prompt - only show for anonymous chats */}
+        {!isFriendChat && showContinuePrompt && (
           <div className="mb-4 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl shadow-sm">
             <p className="mb-4 font-bold text-gray-900 text-lg">Minimum time reached. What would you like to do?</p>
             <div className="flex flex-col gap-3">
@@ -630,8 +669,8 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           </button>
         </div>
 
-        {/* Add as Friend button - shown after minimum time if chat continued */}
-        {minimumTimeMet && chatContinued && !showFriendPrompt && (
+        {/* Add as Friend button - shown after minimum time if chat continued (only for anonymous chats) */}
+        {!isFriendChat && minimumTimeMet && chatContinued && !showFriendPrompt && (
           <button
             onClick={handleAddFriend}
             disabled={friendRequestSent}
@@ -648,13 +687,24 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           </button>
         )}
 
-        {!minimumTimeMet && (
+        {/* Leave Early button - only show for anonymous chats */}
+        {!isFriendChat && !minimumTimeMet && (
           <button
             onClick={handleEarlyExit}
             disabled={earlyExitRequested}
             className="mt-3 w-full px-4 py-2.5 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 disabled:opacity-50 font-medium border-2 border-red-200 transition-all"
           >
             Leave Early
+          </button>
+        )}
+        
+        {/* Leave button for friend chats - can leave anytime */}
+        {isFriendChat && (
+          <button
+            onClick={() => endChat(false)}
+            className="mt-3 w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium transition-all"
+          >
+            Leave Chat
           </button>
         )}
       </div>

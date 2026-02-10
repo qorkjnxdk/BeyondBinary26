@@ -128,6 +128,18 @@ export async function PATCH(request: NextRequest) {
         createFriendship(friendRequest.sender_id, friendRequest.receiver_id, friendRequest.session_id || undefined);
       }
 
+      // If there's a session_id, mark it as became_friends and preserve messages
+      if (friendRequest.session_id) {
+        db.prepare(`
+          UPDATE chat_sessions
+          SET became_friends = 1, session_type = 'friend'
+          WHERE session_id = ?
+        `).run(friendRequest.session_id);
+        
+        // Ensure messages are not deleted (they should already be preserved, but just in case)
+        db.prepare('UPDATE messages SET is_deleted = 0 WHERE session_id = ?').run(friendRequest.session_id);
+      }
+
       return NextResponse.json({ success: true, message: 'Friend request accepted' });
     } else if (action === 'decline') {
       declineFriendRequest(requestId);

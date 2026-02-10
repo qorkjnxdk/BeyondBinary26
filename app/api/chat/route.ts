@@ -71,6 +71,14 @@ export async function GET(request: NextRequest) {
     const continueRequestedBy = sessionData?.continue_requested_by || null;
     const friendRequestedBy = sessionData?.friend_requested_by || null;
 
+    // If this is a friend chat or became friends, get real names
+    const isFriendChat = session.session_type === 'friend' || session.became_friends;
+    let otherUser = null;
+    if (isFriendChat) {
+      const { getUserById } = await import('@/lib/auth');
+      otherUser = getUserById(otherUserId);
+    }
+
     return NextResponse.json({
       session: {
         ...session,
@@ -82,6 +90,7 @@ export async function GET(request: NextRequest) {
         friendRequestedBy: friendRequestedBy,
       },
       messages,
+      otherUser: otherUser ? { real_name: otherUser.real_name } : null,
     });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
