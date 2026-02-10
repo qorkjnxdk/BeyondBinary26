@@ -19,6 +19,30 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function clampView(
+    x: number,
+    y: number,
+    scale: number,
+    viewportW: number,
+    viewportH: number
+) {
+  const contentW = viewportW * scale;
+  const contentH = viewportH * scale;
+
+  // If content is smaller than viewport (can happen if you allow scale < 1),
+  // lock it centered.
+  const minX = contentW <= viewportW ? (viewportW - contentW) / 2 : viewportW - contentW;
+  const maxX = contentW <= viewportW ? (viewportW - contentW) / 2 : 0;
+
+  const minY = contentH <= viewportH ? (viewportH - contentH) / 2 : viewportH - contentH;
+  const maxY = contentH <= viewportH ? (viewportH - contentH) / 2 : 0;
+
+  return {
+    x: clamp(x, minX, maxX),
+    y: clamp(y, minY, maxY),
+  };
+}
+
 function latLngToPercent(lat: number, lng: number) {
   const x01 = (lng - SG_BOUNDS.minLng) / (SG_BOUNDS.maxLng - SG_BOUNDS.minLng);
   const y01 = (SG_BOUNDS.maxLat - lat) / (SG_BOUNDS.maxLat - SG_BOUNDS.minLat);
@@ -39,6 +63,14 @@ export function DraggableMapViewport({ children }: { children: React.ReactNode }
   const last = useRef({ x: 0, y: 0 });
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+
+    // DO NOT drag if clicking interactive element
+    const target = e.target as HTMLElement;
+
+    if (target.closest("button")) {
+      return;
+    }
+
     dragging.current = true;
     (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
     last.current = { x: e.clientX, y: e.clientY };
@@ -46,11 +78,22 @@ export function DraggableMapViewport({ children }: { children: React.ReactNode }
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return;
+
     const dx = e.clientX - last.current.x;
     const dy = e.clientY - last.current.y;
     last.current = { x: e.clientX, y: e.clientY };
 
-    setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+    const el = containerRef.current;
+    if (!el) return;
+
+    const { width, height } = el.getBoundingClientRect();
+
+    setView((v) => {
+      const nextX = v.x + dx;
+      const nextY = v.y + dy;
+      const clamped = clampView(nextX, nextY, v.scale, width, height);
+      return { ...v, ...clamped };
+    });
   };
 
   const onPointerUp = () => {
@@ -75,9 +118,13 @@ export function DraggableMapViewport({ children }: { children: React.ReactNode }
 
       setView((v) => {
         const scaleRatio = nextScale / v.scale;
-        const nextX = cx - (cx - v.x) * scaleRatio;
-        const nextY = cy - (cy - v.y) * scaleRatio;
-        return { x: nextX, y: nextY, scale: nextScale };
+
+        const rawX = cx - (cx - v.x) * scaleRatio;
+        const rawY = cy - (cy - v.y) * scaleRatio;
+
+        const clamped = clampView(rawX, rawY, nextScale, rect.width, rect.height);
+
+        return { x: clamped.x, y: clamped.y, scale: nextScale };
       });
     };
 
@@ -88,6 +135,21 @@ export function DraggableMapViewport({ children }: { children: React.ReactNode }
   }, [view.scale]);
 
   const reset = () => setView({ x: 0, y: 0, scale: 1 });
+
+  useEffect(() => {
+    const onResize = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const { width, height } = el.getBoundingClientRect();
+      setView((v) => {
+        const clamped = clampView(v.x, v.y, v.scale, width, height);
+        return { ...v, ...clamped };
+      });
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   return (
       <div
@@ -126,49 +188,63 @@ export function DraggableMapViewport({ children }: { children: React.ReactNode }
 }
 
 export default function PresenceMap() {
-  const [presence, setPresence] = useState<PresenceEntry[]>([]);
+
+  const [friends, setFriends] = useState<any[]>([]);
+  const [everyone, setEveryone] = useState<any[]>([]);
+
+  const [scope, setScope] = useState<"friends" | "everyone">("friends");
+  const [status, setStatus] = useState<"all" | "online">("all");
+
   const [loading, setLoading] = useState(true);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    if (!token) return;
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
-    const loadPresence = () => {
-      fetch('/api/debug/users', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (!data.users) return;
-          const online = data.users.filter((u: any) => u.status === 'online');
-          const counts: Record<string, number> = {};
-          online.forEach((u: any) => {
-            const loc = u.location || 'Somewhere in SG';
-            counts[loc] = (counts[loc] || 0) + 1;
-          });
-          const entries = Object.entries(counts).map(([location, count]) => ({ location, count }));
-          entries.sort((a, b) => b.count - a.count);
-          setPresence(entries);
-        })
-        .finally(() => setLoading(false));
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        const [friendsRes, everyoneRes] = await Promise.all([
+          fetch("/api/friends", { headers }).then(r => r.json()),
+          fetch("/api/presence", { headers }).then(r => r.json()),
+        ]);
+
+        setFriends(friendsRes.friends || []);
+        setEveryone(everyoneRes.presence || []);
+
+      } finally {
+        setLoading(false);
+      }
     };
 
-    loadPresence();
-    const interval = setInterval(loadPresence, 10000);
+    load();
+
+    const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
+
   }, []);
 
-  const totalOnline = presence.reduce((sum, p) => sum + p.count, 0);
-  const pins = presence.slice(0, 6); // show top locations as pins
-  const pinPositions = [
-    'top-6 left-10',
-    'top-10 right-16',
-    'top-1/2 left-1/4 -translate-y-1/2',
-    'top-1/2 right-8 -translate-y-1/2',
-    'bottom-10 left-1/3',
-    'bottom-6 right-12',
-  ];
+  const source = scope === "friends" ? friends : everyone;
+
+  const filtered = source.filter((u: any) => {
+
+    if (!u.location) return false;
+
+    if (!singaporeLatLng[u.location]) return false;
+
+    if (status === "online") return u.online;
+
+    return true;
+
+  });
 
   return (
     <div className="bg-white rounded-3xl shadow-soft p-6 border border-gray-100">
@@ -181,91 +257,186 @@ export default function PresenceMap() {
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white font-bold text-sm">
-            {totalOnline}
+            {filtered.filter((u:any) => u.online).length}
           </div>
           <span className="text-[10px] uppercase tracking-wide text-gray-400">Online now</span>
         </div>
       </div>
 
       {loading ? (
-        <p className="text-gray-600 text-sm">Loading presence...</p>
-      ) : presence.length === 0 ? (
-        <p className="text-gray-500 text-sm">
-          You might be the first one here right now. Others will join soon.
-        </p>
+          <p className="text-gray-600 text-sm">Loading presence...</p>
       ) : (
-          <div className="relative w-full overflow-hidden rounded-3xl border border-gray-100 mb-4 bg-white aspect-[1536/895]">
-            <DraggableMapViewport>
-              <img
-                  src="/singapore.png"
-                  alt="Singapore map"
-                  draggable={false}
-                  className="absolute inset-0 w-full h-full object-contain object-center select-none pointer-events-none"
-              />
+          <div>
 
-              {/* Pins overlay */}
-              <div className="absolute inset-0">
-                {pins.map((entry) => {
-                  const coord = singaporeLatLng[entry.location];
-                  if (!coord) return null;
+            {/* Filters ALWAYS visible */}
+            <div className="flex gap-2 mb-3">
 
-                  const { left, top } = latLngToPercent(coord.lat, coord.lng);
+              <button
+                  onClick={() => setScope("friends")}
+                  className={`px-3 py-1 rounded-full border text-sm ${
+                      scope === "friends"
+                          ? "bg-primary-50 border-primary-400"
+                          : "bg-white border-gray-200"
+                  }`}
+              >
+                Friends
+              </button>
 
-                  return (
-                      <button
-                          key={entry.location}
-                          type="button"
-                          onClick={() =>
-                              setSelectedLocation(selectedLocation === entry.location ? null : entry.location)
-                          }
-                          style={{
-                            position: "absolute",
-                            left,
-                            top,
-                            transform: "translate(-50%, -100%)",
-                          }}
-                          className="transition-all hover:scale-105"
-                      >
-                        {/* your pin UI */}
-                        <div className="relative">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white text-xs font-bold shadow-lg">
-                            {entry.count}
+              <button
+                  onClick={() => setScope("everyone")}
+                  className={`px-3 py-1 rounded-full border text-sm ${
+                      scope === "everyone"
+                          ? "bg-primary-50 border-primary-400"
+                          : "bg-white border-gray-200"
+                  }`}
+              >
+                Everyone
+              </button>
+
+              <button
+                  onClick={() => setStatus("all")}
+                  className={`px-3 py-1 rounded-full border text-sm ${
+                      status === "all"
+                          ? "bg-gray-100 border-gray-400"
+                          : "bg-white border-gray-200"
+                  }`}
+              >
+                All
+              </button>
+
+              <button
+                  onClick={() => setStatus("online")}
+                  className={`px-3 py-1 rounded-full border text-sm ${
+                      status === "online"
+                          ? "bg-gray-100 border-gray-400"
+                          : "bg-white border-gray-200"
+                  }`}
+              >
+                Online
+              </button>
+
+            </div>
+
+            {/* Map ALWAYS visible */}
+            <div className="relative w-full overflow-hidden rounded-3xl border border-gray-100 mb-4 bg-white aspect-[1536/895]">
+              <DraggableMapViewport>
+
+                <div
+                    className="absolute inset-0"
+                    onClick={() => setSelectedUser(null)}
+                >
+                  <img
+                      src="/singapore.png"
+                      alt="Singapore map"
+                      draggable={false}
+                      className="absolute inset-0 w-full h-full object-contain object-center select-none pointer-events-none"
+                  />
+                </div>
+
+                <div className="absolute inset-0">
+
+                  {/* Show pins */}
+                  {filtered.map((user: any) => {
+
+                    const coord = singaporeLatLng[user.location];
+                    if (!coord) return null;
+
+                    const { left, top } = latLngToPercent(coord.lat, coord.lng);
+
+                    return (
+                        <button
+                            key={user.userId}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedUser(user);
+                            }}
+                            style={{
+                              position: "absolute",
+                              left,
+                              top,
+                              transform: "translate(-50%, -100%)",
+                              zIndex: selectedUser?.userId === user.userId ? 50 : 10,
+                            }}
+                            className="transition-all hover:scale-105 group"
+                        >
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
+                              scope === "friends"
+                                  ? "bg-gradient-to-r from-primary-500 to-accent-500"
+                                  : "bg-gradient-to-r from-gray-500 to-gray-700"
+                          }`}>
+                            {user.realName?.[0] || "U"}
                           </div>
-                          <div className="absolute inset-x-1/2 top-8 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-primary-500 opacity-80" />
+
+                          {user.online && (
+                              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 border-2 border-white rounded-full"/>
+                          )}
+
+                        </button>
+                    );
+                  })}
+
+                  {/* Popup */}
+                  {selectedUser && (() => {
+
+                    const coord = singaporeLatLng[selectedUser.location];
+                    if (!coord) return null;
+
+                    const { left, top } = latLngToPercent(coord.lat, coord.lng);
+
+                    return (
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              position: "absolute",
+                              left,
+                              top,
+                              transform: "translate(-50%, -140%)",
+                              zIndex: 999,
+                            }}
+                        >
+                          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-3 w-48">
+
+                            <div className="font-semibold text-gray-900">
+                              {selectedUser.realName}
+                            </div>
+
+                            <div className="text-xs text-gray-500">
+                              {selectedUser.location}
+                            </div>
+
+                            <div className="text-xs mt-1">
+                              {selectedUser.online
+                                  ? <span className="text-green-500">● Online</span>
+                                  : <span className="text-gray-400">Offline</span>}
+                            </div>
+
+                            <button
+                                onClick={() => setSelectedUser(null)}
+                                className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+                            >
+                              Close
+                            </button>
+
+                          </div>
                         </div>
-                        <div className="mt-2 px-2 py-1 rounded-full bg-white/90 backdrop-blur text-[10px] font-semibold text-gray-800 max-w-[120px] truncate shadow-sm">
-                          {entry.location}
-                        </div>
-                      </button>
-                  );
-                })}
-              </div>
-            </DraggableMapViewport>
+                    );
+
+                  })()}
+
+                  {/* Empty message INSIDE map */}
+                  {filtered.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
+                        No users match this filter
+                      </div>
+                  )}
+
+                </div>
+
+              </DraggableMapViewport>
+            </div>
+
           </div>
       )}
-
-      {presence.length > 0 && (
-        <div className="flex flex-wrap gap-2 text-[11px] text-gray-600">
-          {presence.slice(0, 10).map((entry) => (
-            <button
-              key={entry.location}
-              type="button"
-              onClick={() =>
-                setSelectedLocation(
-                  selectedLocation === entry.location ? null : entry.location
-                )
-              }
-              className={`px-2.5 py-1 rounded-full border text-xs transition-all ${
-                selectedLocation === entry.location
-                  ? 'border-primary-400 bg-primary-50 text-primary-700'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              {entry.location} · {entry.count}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
-  );
+  )
 }

@@ -22,6 +22,9 @@ export async function GET(request: NextRequest) {
         visibleProfile: visibleData,
         lastActive: friend.last_active,
         createdAt: f.created_at,
+
+        location: friend.location ?? null,
+        online: Date.now() - (friend.last_active ?? 0) < 5 * 60 * 1000,
       };
     }).filter((f): f is NonNullable<typeof f> => f !== null);
 
