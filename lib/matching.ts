@@ -18,21 +18,87 @@ export function generateRandomName(): string {
   return `${color}${noun}${number}`;
 }
 
-// Calculate topic similarity (simplified - in production, use NLP)
+// Common English stop words to filter out
+const STOP_WORDS = new Set([
+  'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours',
+  'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers',
+  'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+  'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are',
+  'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does',
+  'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until',
+  'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into',
+  'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down',
+  'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once'
+]);
+
+// Important keywords that indicate similar topics (postpartum, mental health, parenting, etc.)
+const TOPIC_KEYWORDS: Record<string, string[]> = {
+  postpartum: ['postpartum', 'post-partum', 'postnatal', 'post-natal', 'childbirth', 'newborn', 'baby', 'infant', 'breastfeed', 'nursing', 'maternity'],
+  mental_health: ['depression', 'anxiety', 'stress', 'overwhelmed', 'lonely', 'isolation', 'mood', 'mental', 'emotional', 'therapy', 'counseling'],
+  parenting: ['parenting', 'motherhood', 'parent', 'mother', 'mom', 'mum', 'raising', 'caring', 'child', 'children', 'toddler'],
+  relationships: ['relationship', 'partner', 'husband', 'spouse', 'marriage', 'family', 'friend', 'friendship', 'support'],
+  work_life: ['work', 'job', 'career', 'balance', 'workplace', 'boss', 'colleague', 'office', 'employment'],
+  health: ['health', 'medical', 'doctor', 'hospital', 'recovery', 'physical', 'wellness', 'fitness', 'exercise'],
+  sleep: ['sleep', 'tired', 'exhausted', 'fatigue', 'rest', 'insomnia', 'sleepless'],
+  advice: ['advice', 'help', 'support', 'guidance', 'tips', 'suggestions', 'recommend'],
+};
+
+// Normalize and tokenize text
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ') // Keep hyphens for compound words
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !STOP_WORDS.has(word));
+}
+
+// Find topic categories for a prompt
+function categorizePrompt(tokens: string[]): Set<string> {
+  const categories = new Set<string>();
+  
+  for (const [category, keywords] of Object.entries(TOPIC_KEYWORDS)) {
+    for (const keyword of keywords) {
+      if (tokens.some(token => token.includes(keyword) || keyword.includes(token))) {
+        categories.add(category);
+      }
+    }
+  }
+  
+  return categories;
+}
+
+// Calculate topic similarity using improved NLP techniques
 function calculateTopicSimilarity(prompt: string, candidatePrompts: string[]): number {
   if (candidatePrompts.length === 0) return 0.5; // Default score
 
-  const promptWords = prompt.toLowerCase().split(/\s+/);
+  const promptTokens = tokenize(prompt);
+  const promptCategories = categorizePrompt(promptTokens);
+  
   let maxSimilarity = 0;
 
   for (const candidatePrompt of candidatePrompts) {
-    const candidateWords = candidatePrompt.toLowerCase().split(/\s+/);
-    const commonWords = promptWords.filter(w => candidateWords.includes(w));
-    const similarity = commonWords.length / Math.max(promptWords.length, candidateWords.length);
+    const candidateTokens = tokenize(candidatePrompt);
+    const candidateCategories = categorizePrompt(candidateTokens);
+    
+    // Category overlap (weighted heavily - 60% of score)
+    const commonCategories = [...promptCategories].filter(c => candidateCategories.has(c));
+    const categoryScore = commonCategories.length > 0
+      ? commonCategories.length / Math.max(promptCategories.size, candidateCategories.size, 1)
+      : 0;
+    
+    // Token overlap (40% of score)
+    const commonTokens = promptTokens.filter(t => candidateTokens.includes(t));
+    const tokenScore = commonTokens.length > 0
+      ? commonTokens.length / Math.max(promptTokens.length, candidateTokens.length, 1)
+      : 0;
+    
+    // Combined score
+    const similarity = (categoryScore * 0.6) + (tokenScore * 0.4);
     maxSimilarity = Math.max(maxSimilarity, similarity);
   }
 
-  return Math.min(maxSimilarity * 2, 1); // Scale to 0-1
+  // Boost score slightly if there's any match (to ensure people find matches)
+  return Math.min(maxSimilarity * 1.2, 1); // Scale to 0-1 with slight boost
 }
 
 // Calculate profile compatibility
@@ -53,15 +119,23 @@ function calculateProfileCompatibility(userA: User, userB: User): number {
     score += Math.min(shared * 10, 30);
   }
 
-  // Life stage similarity (max 25 points)
+  // Life stage similarity (max 35 points)
   if (userA.marital_status && userB.marital_status) {
     if (userA.marital_status === userB.marital_status) {
-      score += 15;
+      score += 12;
     }
   }
   if (userA.has_baby && userB.has_baby) {
     if (userA.has_baby === userB.has_baby) {
-      score += 10;
+      score += 8;
+    }
+  }
+  // Postpartum stage similarity (new field) - important for postpartum-focused matching
+  if (userA.postpartum_stage && userB.postpartum_stage) {
+    if (userA.postpartum_stage === userB.postpartum_stage) {
+      score += 15; // High weight - same postpartum stage means very similar experiences
+    } else if (userA.postpartum_stage !== 'Not postpartum' && userB.postpartum_stage !== 'Not postpartum') {
+      score += 5; // Both in postpartum, just different stages
     }
   }
 
@@ -101,7 +175,7 @@ function calculateProfileCompatibility(userA: User, userB: User): number {
     }
   }
 
-  return score / 100; // Normalize to 0-1
+  return score / 110; // Normalize to 0-1 (max: 20+30+35+25=110 points)
 }
 
 // Get recent prompts for a user (from current_prompt, invites, and chat sessions)

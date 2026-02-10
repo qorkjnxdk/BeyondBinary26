@@ -32,6 +32,7 @@ export function initDatabase() {
       hobbies TEXT, -- JSON array
       location TEXT,
       has_baby TEXT,
+      postpartum_stage TEXT,
       career_field TEXT,
       privacy_settings TEXT, -- JSON object
       created_at INTEGER NOT NULL,
@@ -83,6 +84,11 @@ export function initDatabase() {
   }
   try {
     db.exec(`ALTER TABLE users ADD COLUMN current_prompt TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN postpartum_stage TEXT`);
   } catch (e) {
     // Column already exists, ignore
   }
@@ -179,6 +185,30 @@ export function initDatabase() {
     )
   `);
 
+  // Journal entries table (private journalling)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS journal_entries (
+      entry_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      sentiment INTEGER,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(user_id)
+    )
+  `);
+
+  // Habit logs table (simple habit tracker)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habit_logs (
+      log_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      habit_type TEXT NOT NULL,
+      value INTEGER,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(user_id)
+    )
+  `);
+
   // Online users tracking (in-memory, but we'll use a table for persistence)
   db.exec(`
     CREATE TABLE IF NOT EXISTS online_users (
@@ -200,6 +230,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_invites_status ON invites(status);
     CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
     CREATE INDEX IF NOT EXISTS idx_online_users_ping ON online_users(last_ping);
+    CREATE INDEX IF NOT EXISTS idx_journal_user_created ON journal_entries(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_habit_logs_user_created ON habit_logs(user_id, created_at);
   `);
 }
 
@@ -208,3 +240,4 @@ initDatabase();
 
 export default db;
 
+``

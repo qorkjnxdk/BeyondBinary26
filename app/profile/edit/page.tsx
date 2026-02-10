@@ -17,6 +17,7 @@ export default function EditProfilePage() {
     hobbyInput: '',
     location: '',
     has_baby: '',
+    postpartum_stage: '',
     career_field: '',
     privacy_settings: {},
   });
@@ -45,6 +46,7 @@ export default function EditProfilePage() {
             hobbyInput: '',
             location: data.user.location || '',
             has_baby: data.user.has_baby || '',
+            postpartum_stage: data.user.postpartum_stage || '',
             career_field: data.user.career_field || '',
             privacy_settings: data.user.privacy_settings || {},
           });
@@ -347,6 +349,46 @@ export default function EditProfilePage() {
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
                 <option value="Expecting">Expecting</option>
+              </select>
+            </div>
+
+            {/* Postpartum Stage */}
+            <div className="border-b border-gray-100 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-gray-900">Postpartum Stage</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentPrivacy = profile.privacy_settings?.postpartum_stage || 'no_one_can_see';
+                    const options = ['anonymous_can_see', 'match_can_see', 'no_one_can_see'];
+                    const nextIndex = (options.indexOf(currentPrivacy) + 1) % options.length;
+                    setProfile({
+                      ...profile,
+                      privacy_settings: {
+                        ...profile.privacy_settings,
+                        postpartum_stage: options[nextIndex],
+                      },
+                    });
+                  }}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-primary-50 transition-all"
+                >
+                  {profile.privacy_settings?.postpartum_stage === 'anonymous_can_see' ? 'Visible' : profile.privacy_settings?.postpartum_stage === 'match_can_see' ? 'Friends Only' : 'Hidden'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+              <select
+                value={profile.postpartum_stage}
+                onChange={(e) => setProfile({ ...profile, postpartum_stage: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
+              >
+                <option value="">Select</option>
+                <option value="Not postpartum">Not postpartum</option>
+                <option value="First few days">First few days</option>
+                <option value="First 3 months">First 3 months</option>
+                <option value="3-12 months">3-12 months</option>
+                <option value="1+ years">1+ years</option>
               </select>
             </div>
 

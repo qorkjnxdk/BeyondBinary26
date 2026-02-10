@@ -32,6 +32,7 @@ export default function FriendList({
 }) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -40,6 +41,11 @@ export default function FriendList({
     if (isOpen) {
       loadFriends();
       loadFriendRequests();
+      loadUnreadCounts();
+      
+      // Refresh unread counts every 5 seconds
+      const interval = setInterval(loadUnreadCounts, 5000);
+      return () => clearInterval(interval);
     }
   }, [isOpen]);
 
@@ -68,6 +74,20 @@ export default function FriendList({
       }
     } catch (error) {
       console.error('Error loading friend requests:', error);
+    }
+  };
+
+  const loadUnreadCounts = async () => {
+    try {
+      const response = await fetch('/api/friends/unread', {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      const data = await response.json();
+      if (data.unreadCounts) {
+        setUnreadCounts(data.unreadCounts);
+      }
+    } catch (error) {
+      console.error('Error loading unread counts:', error);
     }
   };
 
@@ -221,7 +241,7 @@ export default function FriendList({
                 <div
                   key={friend.userId}
                   onClick={() => onSelectFriend(friend.userId)}
-                  className="p-4 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm"
+                  className="p-4 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm relative"
                 >
                   <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                     {friend.realName.charAt(0)}
@@ -233,6 +253,11 @@ export default function FriendList({
                       Online now
                     </div>
                   </div>
+                  {unreadCounts[friend.userId] && unreadCounts[friend.userId] > 0 && (
+                    <div className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg">
+                      {unreadCounts[friend.userId] > 9 ? '9+' : unreadCounts[friend.userId]}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -245,7 +270,7 @@ export default function FriendList({
                 <div
                   key={friend.userId}
                   onClick={() => onSelectFriend(friend.userId)}
-                  className="p-4 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm"
+                  className="p-4 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center gap-4 mb-3 transition-all border border-transparent hover:border-gray-200 hover:shadow-sm relative"
                 >
                   <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg flex-shrink-0">
                     {friend.realName.charAt(0)}
@@ -258,6 +283,11 @@ export default function FriendList({
                         : 'Never active'}
                     </div>
                   </div>
+                  {unreadCounts[friend.userId] && unreadCounts[friend.userId] > 0 && (
+                    <div className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg">
+                      {unreadCounts[friend.userId] > 9 ? '9+' : unreadCounts[friend.userId]}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
