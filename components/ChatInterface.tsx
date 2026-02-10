@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
+import { initializeSocket } from '@/lib/socket';
+import type { Socket } from 'socket.io-client';
 
 interface ChatInterfaceProps {
   session: any;
@@ -20,13 +22,88 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   const [earlyExitApproval, setEarlyExitApproval] = useState<any>(null);
   const [chatContinued, setChatContinued] = useState(false); // Track if user chose to continue
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
 
+  // Initial load via REST + Socket.IO setup
   useEffect(() => {
     loadMessages();
-    const interval = setInterval(loadMessages, 1000); // Poll every second
-    return () => clearInterval(interval);
+
+    let mounted = true;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+    async function setupSocket() {
+      try {
+        const socket = await initializeSocket();
+        if (!mounted) return;
+
+        socketRef.current = socket;
+        socket.emit('join-session', session.session_id);
+
+        socket.on('new-message', (message: any) => {
+          if (!mounted) return;
+          setMessages((prev) => {
+            // Deduplicate by message_id
+            if (prev.some((m) => m.message_id === message.message_id)) {
+              return prev;
+            }
+            // Replace optimistic message from same sender near same time
+            const withoutOptimistic = prev.filter(
+              (m) =>
+                !m._optimistic ||
+                m.sender_id !== message.sender_id ||
+                Math.abs(m.sent_at - message.sent_at) > 5000
+            );
+            return [...withoutOptimistic, message];
+          });
+        });
+
+        socket.on('session-update', (update: any) => {
+          if (!mounted) return;
+          switch (update.type) {
+            case 'session-ended':
+              onChatEnd();
+              break;
+            case 'early-exit-requested':
+              if (update.requestedBy !== user.user_id) {
+                setEarlyExitApproval({ waiting: false, requestedBy: update.requestedBy });
+              }
+              break;
+            case 'early-exit-denied':
+              if (update.deniedBy !== user.user_id) {
+                setEarlyExitRequested(false);
+                setEarlyExitApproval(null);
+                alert('Your early exit request was denied. A penalty has been applied.');
+              }
+              break;
+          }
+        });
+
+        // On reconnect, rejoin room and catch up via REST
+        socket.on('connect', () => {
+          socket.emit('join-session', session.session_id);
+          loadMessages();
+        });
+      } catch (error) {
+        console.error('Failed to initialize socket, falling back to polling:', error);
+        fallbackInterval = setInterval(loadMessages, 2000);
+      }
+    }
+
+    setupSocket();
+
+    return () => {
+      mounted = false;
+      if (fallbackInterval) clearInterval(fallbackInterval);
+      const socket = socketRef.current;
+      if (socket) {
+        socket.emit('leave-session', session.session_id);
+        socket.off('new-message');
+        socket.off('session-update');
+        socket.off('connect');
+      }
+    };
   }, [session.session_id]);
 
   useEffect(() => {
@@ -79,8 +156,23 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   const sendMessage = async () => {
     if (!messageText.trim()) return;
 
+    const text = messageText.trim();
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticMessage = {
+      message_id: optimisticId,
+      session_id: session.session_id,
+      sender_id: user.user_id,
+      message_text: text,
+      sent_at: Date.now(),
+      is_deleted: false,
+      _optimistic: true,
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setMessageText('');
+
     try {
-      await fetch('/api/messages', {
+      const response = await fetch('/api/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,12 +180,16 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         },
         body: JSON.stringify({
           sessionId: session.session_id,
-          messageText: messageText.trim(),
+          messageText: text,
         }),
       });
-      setMessageText('');
-      loadMessages();
+
+      if (!response.ok) {
+        setMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
+      }
+      // Real message arrives via socket 'new-message' event and replaces optimistic
     } catch (error) {
+      setMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
       console.error('Error sending message:', error);
     }
   };

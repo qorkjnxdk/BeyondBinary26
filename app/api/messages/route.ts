@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
 import { addMessage, getChatSession } from '@/lib/chat';
+import { getIO } from '@/lib/socketServer';
 import { z } from 'zod';
 
 const messageSchema = z.object({
@@ -30,6 +31,11 @@ export async function POST(request: NextRequest) {
     }
 
     const message = addMessage(validated.sessionId, userId, validated.messageText);
+
+    const io = getIO();
+    if (io) {
+      io.to(validated.sessionId).emit('new-message', message);
+    }
 
     return NextResponse.json({ message });
   } catch (error: any) {

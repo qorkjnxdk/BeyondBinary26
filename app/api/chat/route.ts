@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/middleware';
 import { getActiveSession, getChatSession, endChatSession, markMinimumTimeMet, getMessages, getOtherUserId, getRandomName, createChatSession } from '@/lib/chat';
 import { createFriendship, areFriends } from '@/lib/friends';
 import { applyPenalty } from '@/lib/auth';
+import { getIO } from '@/lib/socketServer';
 import db from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -109,7 +110,7 @@ export async function PATCH(request: NextRequest) {
     if (action === 'end') {
       const becameFriends = data?.becameFriends === true;
       endChatSession(sessionId, becameFriends);
-      
+
       if (becameFriends) {
         const otherUserId = getOtherUserId(session, userId);
         // Send friend request instead of directly creating friendship
@@ -119,9 +120,28 @@ export async function PATCH(request: NextRequest) {
         }
       }
 
+      const io = getIO();
+      if (io) {
+        io.to(sessionId).emit('session-update', {
+          type: 'session-ended',
+          sessionId,
+          endedBy: userId,
+          becameFriends,
+        });
+      }
+
       return NextResponse.json({ success: true });
     } else if (action === 'mark-minimum-time') {
       markMinimumTimeMet(sessionId);
+
+      const io = getIO();
+      if (io) {
+        io.to(sessionId).emit('session-update', {
+          type: 'minimum-time-met',
+          sessionId,
+        });
+      }
+
       return NextResponse.json({ success: true });
     } else if (action === 'early-exit-request') {
       const elapsed = Date.now() - session.started_at;
@@ -130,6 +150,16 @@ export async function PATCH(request: NextRequest) {
       if (elapsed < twoMinutes) {
         // Store early exit request in database
         db.prepare('UPDATE chat_sessions SET early_exit_requested_by = ? WHERE session_id = ?').run(userId, sessionId);
+
+        const io = getIO();
+        if (io) {
+          io.to(sessionId).emit('session-update', {
+            type: 'early-exit-requested',
+            sessionId,
+            requestedBy: userId,
+          });
+        }
+
         return NextResponse.json({
           requiresApproval: true,
         });
@@ -145,9 +175,21 @@ export async function PATCH(request: NextRequest) {
       // Clear the early exit request
       db.prepare('UPDATE chat_sessions SET early_exit_requested_by = NULL WHERE session_id = ?').run(sessionId);
 
+      const io = getIO();
+
       if (!approved) {
         // Apply penalty to requester
         applyPenalty(otherUserId, 24);
+
+        if (io) {
+          io.to(sessionId).emit('session-update', {
+            type: 'early-exit-denied',
+            sessionId,
+            deniedBy: userId,
+            penaltyApplied: true,
+          });
+        }
+
         return NextResponse.json({
           success: true,
           penaltyApplied: true,
@@ -155,6 +197,15 @@ export async function PATCH(request: NextRequest) {
       } else {
         // End chat with no penalty
         endChatSession(sessionId, false);
+
+        if (io) {
+          io.to(sessionId).emit('session-update', {
+            type: 'session-ended',
+            sessionId,
+            earlyExitApproved: true,
+          });
+        }
+
         return NextResponse.json({ success: true });
       }
     }
