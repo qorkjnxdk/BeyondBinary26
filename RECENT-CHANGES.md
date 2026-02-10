@@ -6,6 +6,20 @@ This document details all changes made in the most recent development session.
 
 ## 🆕 New Features Added
 
+### 0. Split Anonymous Chat and Presence Map into Separate Tabs
+**Files Created:**
+- `app/map/page.tsx` - New dedicated page for Presence Map
+
+**Files Modified:**
+- `components/FeatureTabs.tsx` - Updated tabs to route to `/map` instead of dashboard anchor
+- `app/dashboard/page.tsx` - Removed PresenceMap component and import
+
+**Changes:**
+- Anonymous Chat now has its own clean tab at `/dashboard`
+- Presence Map moved to dedicated route at `/map`
+- Better separation of concerns and navigation
+- Each feature has its own focused page
+
 ### 1. Postpartum Stage Field
 **Files Modified:**
 - `lib/db.ts` - Added `postpartum_stage` column to users table
@@ -160,25 +174,28 @@ ALTER TABLE users ADD COLUMN postpartum_stage TEXT;
 
 ## 📊 Files Changed Summary
 
-### New Files (3)
+### New Files (4)
 - `app/api/friends/unread/route.ts` - Unread messages endpoint
+- `app/map/page.tsx` - Dedicated Presence Map page
 - `SPEC-merged-v3.md` - Merged specification
 - `IMPLEMENTATION-SUMMARY.md` - Implementation documentation
 - `RECENT-CHANGES.md` - This file
 
-### Modified Files (9)
+### Modified Files (10)
 - `lib/db.ts` - Database schema (postpartum_stage)
 - `lib/auth.ts` - User interface (postpartum_stage)
 - `lib/matching.ts` - NLP + postpartum scoring
 - `lib/journal.ts` - Enhanced sentiment analysis
 - `components/ChatInterface.tsx` - 10-minute duration
 - `components/FriendList.tsx` - Unread badges
+- `components/FeatureTabs.tsx` - Separate map tab routing
 - `components/MatchInterface.tsx` - Postpartum field display
 - `app/auth/signup/page.tsx` - Postpartum stage input
 - `app/profile/edit/page.tsx` - Postpartum stage editing
+- `app/dashboard/page.tsx` - Removed presence map
 - `app/api/chat/route.ts` - 10-minute duration
 
-**Total:** 13 files touched (3 new, 9 modified, 1 documentation)
+**Total:** 15 files touched (4 new, 10 modified, 1 documentation)
 
 ---
 

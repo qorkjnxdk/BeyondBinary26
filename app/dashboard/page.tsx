@@ -7,7 +7,6 @@ import ChatInterface from '@/components/ChatInterface';
 import MatchInterface from '@/components/MatchInterface';
 import FriendList from '@/components/FriendList';
 import Notifications from '@/components/Notifications';
-import PresenceMap from '@/components/PresenceMap';
 import FeatureTabs from '@/components/FeatureTabs';
 
 function NotificationButton({ onOpenNotifications }: { onOpenNotifications: () => void }) {
@@ -279,16 +278,11 @@ export default function DashboardPage() {
 
         <FeatureTabs />
 
-        {/* Presence Map + Match Interface */}
-        <div className="p-6 space-y-6">
-          <section id="presence-section">
-            <PresenceMap />
-          </section>
-          <section id="chat-section">
-            <MatchInterface
-              onMatchAccepted={(session) => setActiveChat(session)}
-            />
-          </section>
+        {/* Anonymous Chat / Match Interface */}
+        <div className="p-6">
+          <MatchInterface
+            onMatchAccepted={(session) => setActiveChat(session)}
+          />
         </div>
       </div>
     </div>
