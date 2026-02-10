@@ -227,6 +227,11 @@ export async function PATCH(request: NextRequest) {
           invite.prompt_text
         );
 
+        // Clear current prompts for both users since they're now in a chat
+        const { updateCurrentPrompt } = await import('@/lib/auth');
+        updateCurrentPrompt(invite.sender_id, null);
+        updateCurrentPrompt(invite.receiver_id, null);
+
         // Get random names for the session
         const { getRandomName, getOtherUserId } = await import('@/lib/chat');
         const otherUserId = getOtherUserId(session, userId);

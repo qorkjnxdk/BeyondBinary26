@@ -92,6 +92,10 @@ export function cancelAllInvites(userId: string): void {
     WHERE status = 'pending'
     AND (sender_id = ? OR receiver_id = ?)
   `).run(userId, userId);
+  
+  // Also clear the current prompt when cancelling all invites (user is starting fresh)
+  // Note: We don't clear it here because the matches API will set a new one
+  // This is just for reference - the matches API handles prompt updates
 }
 
 // Expire old invites (should be called periodically)

@@ -21,6 +21,8 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   const [earlyExitRequested, setEarlyExitRequested] = useState(false);
   const [earlyExitApproval, setEarlyExitApproval] = useState<any>(null);
   const [chatContinued, setChatContinued] = useState(false); // Track if user chose to continue
+  const [friendRequestSent, setFriendRequestSent] = useState(false); // Track if friend request was sent
+  const [mutualFriendRequest, setMutualFriendRequest] = useState<any>(null); // Track mutual friend request state
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -148,6 +150,19 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       if (data.session?.earlyExitRequestedBy && !earlyExitApproval?.waiting) {
         setEarlyExitApproval({ waiting: false, requestedBy: data.session.earlyExitRequestedBy });
       }
+      
+      // Check for continue/friend request from other user
+      if (data.session?.continueRequestedBy || data.session?.friendRequestedBy) {
+        setMutualFriendRequest({
+          continueRequested: data.session.continueRequestedBy,
+          friendRequested: data.session.friendRequestedBy,
+        });
+      }
+      
+      // Check if friend request was already sent
+      if (data.session?.friendRequestedBy === user.user_id) {
+        setFriendRequestSent(true);
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
     }
@@ -228,10 +243,8 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         alert('An error occurred while sending friend request');
       }
     } else if (action === 'continue') {
-      setShowContinuePrompt(false);
-      setChatContinued(true);
-      // Mark minimum time as met
-      await fetch('/api/chat', {
+      // Request to continue - check if mutual
+      const response = await fetch('/api/chat', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -239,9 +252,21 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         },
         body: JSON.stringify({
           sessionId: session.session_id,
-          action: 'mark-minimum-time',
+          action: 'continue-request',
         }),
       });
+      
+      const data = await response.json();
+      
+      if (data.mutual) {
+        // Both want to continue
+        setShowContinuePrompt(false);
+        setChatContinued(true);
+      } else if (data.waiting) {
+        // Waiting for other user
+        setShowContinuePrompt(false);
+        setMutualFriendRequest({ continueRequested: true, waiting: true });
+      }
     }
   };
 
@@ -269,7 +294,21 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         return;
       }
 
-      alert(`Friend request sent to ${otherUserName}! They will be notified.`);
+      setFriendRequestSent(true);
+      
+      // Update session to track friend request
+      await fetch('/api/chat', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          sessionId: session.session_id,
+          action: 'friend-request',
+        }),
+      });
+      
       // Don't end the chat - they can continue talking
     } catch (error) {
       console.error('Error sending friend request:', error);
@@ -488,6 +527,15 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
               <p className="text-sm font-medium text-blue-900">Request sent. Waiting for approval...</p>
+            </div>
+          </div>
+        )}
+
+        {mutualFriendRequest?.waiting && mutualFriendRequest.continueRequested && (
+          <div className="mb-4 p-5 bg-blue-50 border-2 border-blue-300 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <p className="text-sm font-medium text-blue-900">Waiting for {otherUserName} to agree to continue chatting...</p>
             </div>
           </div>
         )}

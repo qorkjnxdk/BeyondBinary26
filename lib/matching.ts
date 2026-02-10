@@ -104,16 +104,52 @@ function calculateProfileCompatibility(userA: User, userB: User): number {
   return score / 100; // Normalize to 0-1
 }
 
-// Get recent prompts for a user (from recent chat sessions)
-function getRecentPrompts(userId: string, limit: number = 5): string[] {
-  const sessions = db.prepare(`
-    SELECT prompt_text FROM chat_sessions
-    WHERE (user_a_id = ? OR user_b_id = ?) AND prompt_text IS NOT NULL
-    ORDER BY started_at DESC
-    LIMIT ?
-  `).all(userId, userId, limit) as Array<{ prompt_text: string | null }>;
+// Get recent prompts for a user (from current_prompt, invites, and chat sessions)
+// Only returns the most recent ACTIVE prompt
+// Priority: current_prompt > pending invite > active chat session
+export function getRecentPrompts(userId: string, limit: number = 5): string[] {
+  // First, check the user's current_prompt field (set when they submit "Find Matches")
+  // This shows what they're currently looking for, even before sending invites
+  const user = db.prepare('SELECT current_prompt FROM users WHERE user_id = ?').get(userId) as { current_prompt: string | null } | undefined;
+  
+  if (user?.current_prompt && user.current_prompt.trim() !== '') {
+    return [user.current_prompt];
+  }
 
-  return sessions.map(s => s.prompt_text).filter((p): p is string => p !== null);
+  // Second, try to get the most recent PENDING invite prompt
+  const pendingInvite = db.prepare(`
+    SELECT prompt_text FROM invites
+    WHERE (sender_id = ? OR receiver_id = ?) 
+      AND status = 'pending' 
+      AND prompt_text IS NOT NULL 
+      AND prompt_text != ''
+      AND expires_at > ?
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).get(userId, userId, Date.now()) as { prompt_text: string | null } | undefined;
+
+  // If we have a pending invite, return that prompt
+  if (pendingInvite?.prompt_text) {
+    return [pendingInvite.prompt_text];
+  }
+
+  // Third, get the most recent prompt from an ACTIVE chat session only
+  const activeChatPrompt = db.prepare(`
+    SELECT prompt_text FROM chat_sessions
+    WHERE (user_a_id = ? OR user_b_id = ?) 
+      AND prompt_text IS NOT NULL 
+      AND prompt_text != ''
+      AND is_active = 1
+    ORDER BY started_at DESC
+    LIMIT 1
+  `).get(userId, userId) as { prompt_text: string | null } | undefined;
+
+  if (activeChatPrompt?.prompt_text) {
+    return [activeChatPrompt.prompt_text];
+  }
+
+  // No active prompt - return empty array
+  return [];
 }
 
 // Check if users were matched recently (within 24 hours)
@@ -246,7 +282,7 @@ export function findMatches(userId: string, prompt: string): MatchResult[] {
     // Convert to MatchResult with random names
     return topCandidates.map(({ user, score }) => ({
       user,
-      similarityScore: Math.max(50, Math.min(99, Math.round(score * 100))), // 50-99%
+      similarityScore: Math.max(0, Math.min(100, Math.round(score * 100))), // 0-100% based on actual score
       randomName: generateRandomName(),
     }));
   } catch (error) {

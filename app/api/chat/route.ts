@@ -64,10 +64,12 @@ export async function GET(request: NextRequest) {
     const randomName = getRandomName(session, userId);
     const otherRandomName = getRandomName(session, otherUserId);
     
-    // Check for early exit request
-    const sessionData = db.prepare('SELECT early_exit_requested_by FROM chat_sessions WHERE session_id = ?').get(session.session_id) as any;
+    // Check for early exit request and mutual requests
+    const sessionData = db.prepare('SELECT early_exit_requested_by, continue_requested_by, friend_requested_by FROM chat_sessions WHERE session_id = ?').get(session.session_id) as any;
     const earlyExitRequestedBy = sessionData?.early_exit_requested_by || null;
     const hasEarlyExitRequest = earlyExitRequestedBy && earlyExitRequestedBy !== userId;
+    const continueRequestedBy = sessionData?.continue_requested_by || null;
+    const friendRequestedBy = sessionData?.friend_requested_by || null;
 
     return NextResponse.json({
       session: {
@@ -76,6 +78,8 @@ export async function GET(request: NextRequest) {
         myRandomName: randomName,
         otherRandomName,
         earlyExitRequestedBy: hasEarlyExitRequest ? earlyExitRequestedBy : null,
+        continueRequestedBy: continueRequestedBy,
+        friendRequestedBy: friendRequestedBy,
       },
       messages,
     });
@@ -142,6 +146,34 @@ export async function PATCH(request: NextRequest) {
         });
       }
 
+      return NextResponse.json({ success: true });
+    } else if (action === 'continue-request') {
+      // User wants to continue chatting
+      const otherUserId = getOtherUserId(session, userId);
+      
+      // Check current state before updating
+      const currentState = db.prepare('SELECT continue_requested_by FROM chat_sessions WHERE session_id = ?').get(sessionId) as any;
+      const currentRequester = currentState?.continue_requested_by;
+      
+      if (currentRequester === otherUserId) {
+        // Other user already requested - both want to continue
+        db.prepare('UPDATE chat_sessions SET continue_requested_by = NULL WHERE session_id = ?').run(sessionId);
+        markMinimumTimeMet(sessionId);
+        return NextResponse.json({ success: true, mutual: true });
+      } else {
+        // Set this user as requester
+        db.prepare('UPDATE chat_sessions SET continue_requested_by = ? WHERE session_id = ?').run(userId, sessionId);
+        return NextResponse.json({ success: true, waiting: true });
+      }
+    } else if (action === 'friend-request') {
+      // User wants to send friend request
+      const otherUserId = getOtherUserId(session, userId);
+      db.prepare('UPDATE chat_sessions SET friend_requested_by = ? WHERE session_id = ?').run(userId, sessionId);
+      
+      // Send friend request
+      const { sendFriendRequest } = await import('@/lib/friendRequests');
+      sendFriendRequest(userId, otherUserId, sessionId);
+      
       return NextResponse.json({ success: true });
     } else if (action === 'early-exit-request') {
       const elapsed = Date.now() - session.started_at;

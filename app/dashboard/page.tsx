@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import ChatInterface from '@/components/ChatInterface';
 import MatchInterface from '@/components/MatchInterface';
 import FriendList from '@/components/FriendList';
@@ -123,6 +124,12 @@ export default function DashboardPage() {
               </svg>
               Friends
             </button>
+            <Link
+              href="/profile/edit"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 text-sm font-medium transition-all"
+            >
+              Edit Profile
+            </Link>
             <button
               onClick={() => {
                 localStorage.removeItem('token');

@@ -117,6 +117,11 @@ export function updateLastActive(userId: string): void {
   }
 }
 
+// Update user's current active prompt (shown to others when they're looking for matches)
+export function updateCurrentPrompt(userId: string, prompt: string | null): void {
+  db.prepare('UPDATE users SET current_prompt = ? WHERE user_id = ?').run(prompt, userId);
+}
+
 export function getOnlineUsers(excludeUserId?: string): User[] {
   // Extended to 30 minutes for testing - users who have been active in last 30 minutes
   const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
