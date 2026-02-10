@@ -48,7 +48,7 @@ function tokenize(text: string): string[] {
     .filter(w => w.length > 0);
 }
 
-// Improved sentiment analysis
+// Improved sentiment analysis (kept for fallback, but now using AI score)
 function computeSentiment(content: string): number {
   const tokens = tokenize(content);
   let score = 0;
@@ -87,7 +87,7 @@ function computeSentiment(content: string): number {
         wordScore *= 1.5; // Amplify
       }
       score += wordScore;
-      
+
       // Reset modifiers after applying
       isNegated = false;
       isIntensified = false;
@@ -101,18 +101,18 @@ function computeSentiment(content: string): number {
 export function createJournalEntry(userId: string, content: string): JournalEntry {
   const entryId = uuidv4();
   const now = Date.now();
-  const sentiment = computeSentiment(content);
+  // Don't compute sentiment here - will be updated by AI
 
   db.prepare(
     `INSERT INTO journal_entries (entry_id, user_id, content, sentiment, created_at)
      VALUES (?, ?, ?, ?, ?)`
-  ).run(entryId, userId, content, sentiment, now);
+  ).run(entryId, userId, content, null, now);
 
   return {
     entry_id: entryId,
     user_id: userId,
     content,
-    sentiment,
+    sentiment: null,
     created_at: now
   };
 }
@@ -135,13 +135,12 @@ export function getJournalEntries(userId: string, limit: number = 20): JournalEn
 }
 
 export function updateJournalEntry(entryId: string, userId: string, content: string): JournalEntry | null {
-  const sentiment = computeSentiment(content);
-
+  // Don't compute sentiment here - will be updated by AI
   const result = db.prepare(
     `UPDATE journal_entries
      SET content = ?, sentiment = ?
      WHERE entry_id = ? AND user_id = ?`
-  ).run(content, sentiment, entryId, userId);
+  ).run(content, null, entryId, userId);
 
   if (result.changes === 0) {
     return null;
@@ -158,6 +157,17 @@ export function updateJournalEntry(entryId: string, userId: string, content: str
     sentiment: row.sentiment,
     created_at: row.created_at,
   };
+}
+
+// New function to update sentiment score after AI generation
+export function updateEntrySentiment(entryId: string, userId: string, sentiment: number): boolean {
+  const result = db.prepare(
+    `UPDATE journal_entries
+     SET sentiment = ?
+     WHERE entry_id = ? AND user_id = ?`
+  ).run(sentiment, entryId, userId);
+
+  return result.changes > 0;
 }
 
 export function deleteJournalEntry(entryId: string, userId: string): boolean {

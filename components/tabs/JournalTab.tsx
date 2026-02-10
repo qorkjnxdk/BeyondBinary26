@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import JournalResponse from '@/components/JournalResponse';
+import SentimentTrends from '@/components/SentimentTrends';
 
 interface JournalEntry {
   entry_id: string;
@@ -11,8 +12,9 @@ interface JournalEntry {
 }
 
 interface AIResponse {
+  sentiment_score: number;
   message: string;
-  suggestions: string[];
+  suggestions: string[] | null;
 }
 
 interface JournalTabProps {
@@ -35,7 +37,7 @@ export default function JournalTab({ isActive }: JournalTabProps) {
 
   useEffect(() => {
     if (!isActive) return;
-    
+
     setLoading(true);
     const token = getToken();
     fetch('/api/journal', {
@@ -43,6 +45,7 @@ export default function JournalTab({ isActive }: JournalTabProps) {
     })
       .then(res => res.json())
       .then(data => {
+        console.log('Journal entries loaded:', data.entries?.length, 'entries');
         if (data.entries) setEntries(data.entries);
       })
       .finally(() => setLoading(false));
@@ -66,7 +69,6 @@ export default function JournalTab({ isActive }: JournalTabProps) {
       const data = await res.json();
 
       if (res.ok && data.entry) {
-        setEntries([data.entry, ...entries]);
         setContent('');
 
         // Immediately generate AI response for the new entry
@@ -84,13 +86,38 @@ export default function JournalTab({ isActive }: JournalTabProps) {
         const aiData = await aiRes.json();
 
         if (aiRes.ok) {
+          // Save sentiment score to database
+          await fetch('/api/journal/update-sentiment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              entry_id: data.entry.entry_id,
+              sentiment_score: aiData.sentiment_score,
+            }),
+          });
+
+          // Add entry with AI-generated sentiment score
+          const entryWithSentiment = {
+            ...data.entry,
+            sentiment: aiData.sentiment_score,
+          };
+          setEntries([entryWithSentiment, ...entries]);
+
+          // Store temporary AI response
           setAiResponses(prev => ({
             ...prev,
             [data.entry.entry_id]: {
+              sentiment_score: aiData.sentiment_score,
               message: aiData.message,
               suggestions: aiData.suggestions,
             },
           }));
+        } else {
+          // Add entry without AI response if generation failed
+          setEntries([data.entry, ...entries]);
         }
       } else {
         alert(data.error || 'Failed to save entry');
@@ -147,9 +174,30 @@ export default function JournalTab({ isActive }: JournalTabProps) {
         const aiData = await aiRes.json();
 
         if (aiRes.ok) {
+          // Save sentiment score to database
+          await fetch('/api/journal/update-sentiment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              entry_id: entryId,
+              sentiment_score: aiData.sentiment_score,
+            }),
+          });
+
+          // Update the entry's sentiment with the AI-generated score
+          setEntries(entries.map(e =>
+            e.entry_id === entryId
+              ? { ...e, sentiment: aiData.sentiment_score }
+              : e
+          ));
+
           setAiResponses(prev => ({
             ...prev,
             [entryId]: {
+              sentiment_score: aiData.sentiment_score,
               message: aiData.message,
               suggestions: aiData.suggestions,
             },
@@ -200,13 +248,27 @@ export default function JournalTab({ isActive }: JournalTabProps) {
 
   const sentimentLabel = (score: number | null) => {
     if (score === null) return '';
-    if (score > 0) return 'Gentle positive tone';
-    if (score < 0) return 'Sounds heavy today';
+    if (score <= 29) return 'Sounds heavy today';
+    if (score >= 70) return 'Gentle positive tone';
     return 'Neutral tone';
+  };
+
+  const getEntryBackgroundColor = (sentiment: number | null) => {
+    if (sentiment === null) return 'bg-white';
+    if (sentiment <= 29) return 'bg-red-50'; // Light red for negative
+    if (sentiment >= 70) return 'bg-green-50'; // Light green for positive
+    return 'bg-white'; // White for neutral
   };
 
   return (
     <div className="max-w-3xl mx-auto">
+      {/* Sentiment Trends Visualization */}
+      {isActive && (
+        <div className="mb-8">
+          <SentimentTrends />
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-soft p-8 border border-gray-100 mb-6">
         <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2">
           Private Journal
@@ -238,7 +300,7 @@ export default function JournalTab({ isActive }: JournalTabProps) {
           <p className="text-gray-500">No entries yet. Start with a small note to yourself.</p>
         ) : (
           entries.map((entry) => (
-            <div key={entry.entry_id} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+            <div key={entry.entry_id} className={`${getEntryBackgroundColor(entry.sentiment)} rounded-2xl shadow-sm p-5 border border-gray-100 transition-colors`}>
               {editingId === entry.entry_id ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -277,7 +339,7 @@ export default function JournalTab({ isActive }: JournalTabProps) {
                     <div className="flex items-center gap-3">
                       {entry.sentiment !== null && (
                         <span className="text-xs font-medium text-gray-600">
-                          {sentimentLabel(entry.sentiment)}
+                          {entry.sentiment}%
                         </span>
                       )}
                       <div className="flex gap-2">

@@ -20,111 +20,151 @@ interface JournalResponseInput {
 }
 
 interface JournalResponse {
+  sentiment_score: number; // 0-99 score
   message: string;
   suggestions: string[] | null;
 }
 
-// Prompt templates for different sentiment categories
-const NEGATIVE_PROMPT_TEMPLATE = (content: string) => `
-A postpartum mother wrote: "${content}"
+// Unified prompt template that returns JSON with sentiment score
+const JOURNAL_ANALYSIS_PROMPT = (content: string) => `
+You are a supportive companion for postpartum mothers. Analyze the journal entry and provide:
+1. A sentiment score (0-99)
+2. A warm, supportive response
 
-Write a brief, warm response (2-3 sentences max). Be natural and supportive, not formal. Acknowledge how she feels, remind her other mothers feel this way too. Use simple language.
+Sentiment scoring guide:
+- 0-29: Strong negative emotions (hopelessness, despair, feeling like a failure, severe overwhelm, self-criticism, exhaustion, crying, isolation)
+- 30-69: Neutral or mixed emotions (matter-of-fact, ups and downs, mild tiredness, balanced, routine descriptions)
+- 70-99: Positive emotions (joy, gratitude, accomplishment, hope, connection, pride, love, happiness)
 
-Then give 2-3 tiny, doable things (under 5 min each). Use "you might" or "try", never "you should".
+Response guidelines based on score:
 
-Format:
-MESSAGE: [2-3 sentences]
-SUGGESTIONS:
-- [something small]
-- [something small]
-- [something small]
-`.trim();
+IF SCORE 0-29 (Negative):
+- Validate feelings warmly (2-3 sentences)
+- Say "other mothers feel this way too"
+- Provide 2-3 gentle, actionable suggestions like:
+  * "Step outside for fresh air, even just for 2 minutes"
+  * "Drink water and take three deep breaths"
+  * "Write down one small thing that went okay today"
+  * "Rest for 10 minutes if you can"
+  * "Call or text someone you trust"
+- NO clinical terms, NO "you should"
+- Use warm, non-prescriptive language ("you might try", "perhaps")
 
-const POSITIVE_PROMPT_TEMPLATE = (content: string) => `
-A postpartum mother wrote: "${content}"
+IF SCORE 30-69 (Neutral):
+- Acknowledge the mixed or calm state (2 sentences)
+- Gentle encouragement
+- Include normalization ("this is common in motherhood")
+- NO suggestions needed
 
-Write a brief response (2 sentences max). Be warm but not over-the-top. Acknowledge her good moment and mention other mothers would be glad to hear this too.
+IF SCORE 70-99 (Positive):
+- Affirm positive feelings (2 sentences)
+- Celebrate without being over-the-top
+- Include "other mothers would be glad to hear this"
+- NO suggestions needed
 
-Format:
-MESSAGE: [2 sentences]
-
-NO suggestions needed.
-`.trim();
-
-const NEUTRAL_PROMPT_TEMPLATE = (content: string) => `
-A postpartum mother wrote: "${content}"
-
-Write a brief response (2 sentences max). Acknowledge her experience, mention it's common. Keep it simple and warm.
-
-Format:
-MESSAGE: [2 sentences]
-
-NO suggestions needed.
-`.trim();
-
-// Parse the Gemini response
-function parseGeminiResponse(text: string): JournalResponse {
-  const lines = text.split('\n').filter(line => line.trim());
-
-  let message = '';
-  const suggestions: string[] = [];
-  let inSuggestions = false;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    if (trimmed.startsWith('MESSAGE:')) {
-      message = trimmed.replace('MESSAGE:', '').trim();
-    } else if (trimmed === 'SUGGESTIONS:') {
-      inSuggestions = true;
-    } else if (inSuggestions && trimmed.startsWith('-')) {
-      suggestions.push(trimmed.substring(1).trim());
-    } else if (!inSuggestions && !trimmed.startsWith('MESSAGE:')) {
-      // Add to message if it's not a label
-      if (message) {
-        message += ' ' + trimmed;
-      } else {
-        message = trimmed;
-      }
-    }
-  }
-
-  return {
-    message: message || text, // Fallback to full text if parsing fails
-    suggestions: suggestions.length > 0 ? suggestions : null,
-  };
+Return response in this EXACT JSON format:
+{
+  "score": <number 0-99>,
+  "message": "<supportive response text>",
+  "suggestions": [<array of 2-3 suggestion strings>] OR null
 }
 
-// Generate supportive response based on journal entry
+Rules:
+- Keep message under 150 words
+- Be warm and human, like a supportive friend
+- Include "other mothers" normalization in EVERY response
+- suggestions should be null if score >= 30
+- NO medical/clinical language
+- Return ONLY valid JSON, no other text
+
+Journal entry: "${content}"
+`.trim();
+
+// Parse the Gemini JSON response
+function parseGeminiResponse(text: string): JournalResponse {
+  try {
+    // Clean up the response text - remove markdown code blocks if present
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.substring(7);
+    }
+    if (cleanText.startsWith('```')) {
+      cleanText = cleanText.substring(3);
+    }
+    if (cleanText.endsWith('```')) {
+      cleanText = cleanText.substring(0, cleanText.length - 3);
+    }
+    cleanText = cleanText.trim();
+
+    const parsed = JSON.parse(cleanText);
+
+    // Validate the response structure
+    if (typeof parsed.score !== 'number' || parsed.score < 0 || parsed.score > 99) {
+      throw new Error('Invalid score in response');
+    }
+
+    if (typeof parsed.message !== 'string' || !parsed.message.trim()) {
+      throw new Error('Invalid message in response');
+    }
+
+    return {
+      sentiment_score: parsed.score,
+      message: parsed.message,
+      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : null,
+    };
+  } catch (error) {
+    console.error('Error parsing Gemini response:', error);
+    console.error('Raw response:', text);
+
+    // Fallback to neutral score with supportive message
+    return {
+      sentiment_score: 50,
+      message: "Thank you for sharing. We're here with you.",
+      suggestions: null,
+    };
+  }
+}
+
+// Generate supportive response with sentiment score based on journal entry
 export async function generateJournalResponse(
   input: JournalResponseInput
 ): Promise<JournalResponse> {
-  const { content, sentiment } = input;
+  const { content } = input;
 
-  // Determine which prompt to use based on sentiment
-  let prompt: string;
-  if (sentiment === null || sentiment === 0) {
-    prompt = NEUTRAL_PROMPT_TEMPLATE(content);
-  } else if (sentiment < 0) {
-    prompt = NEGATIVE_PROMPT_TEMPLATE(content);
-  } else {
-    prompt = POSITIVE_PROMPT_TEMPLATE(content);
-  }
+  // Use unified prompt that analyzes sentiment and generates response
+  const prompt = JOURNAL_ANALYSIS_PROMPT(content);
 
   try {
     const client = getGeminiClient();
-    const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = client.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 40,
+      },
+    });
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Set timeout for API call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10 seconds
 
-    return parseGeminiResponse(text);
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      clearTimeout(timeout);
+      return parseGeminiResponse(text);
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch (error) {
     console.error('Error generating journal reflection:', error);
 
-    // Graceful fallback
+    // Graceful fallback with neutral score
     return {
+      sentiment_score: 50,
       message: "Thank you for sharing. We're here with you.",
       suggestions: null,
     };
@@ -134,6 +174,7 @@ export async function generateJournalResponse(
 // Fallback response if API fails
 export function getFallbackResponse(): JournalResponse {
   return {
+    sentiment_score: 50, // Neutral default
     message: "Thank you for sharing. We're here with you.",
     suggestions: null,
   };
