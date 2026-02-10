@@ -6,7 +6,6 @@ import { useState, useEffect } from 'react';
 
 const tabs = [
   { id: 'chat', label: 'Anonymous Chat', href: '/dashboard' },
-  { id: 'presence', label: 'Presence Map', href: '/map' },
   { id: 'journal', label: 'Journal', href: '/journal' },
   { id: 'habits', label: 'Habits', href: '/habits' },
 ];
@@ -18,7 +17,6 @@ export default function FeatureTabs() {
   useEffect(() => {
     if (pathname === '/journal') setActive('journal');
     else if (pathname === '/habits') setActive('habits');
-    else if (pathname === '/map') setActive('presence');
     else if (pathname === '/dashboard') setActive('chat');
     else setActive('chat');
   }, [pathname]);

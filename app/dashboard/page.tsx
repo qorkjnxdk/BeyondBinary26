@@ -7,7 +7,7 @@ import ChatInterface from '@/components/ChatInterface';
 import MatchInterface from '@/components/MatchInterface';
 import FriendList from '@/components/FriendList';
 import Notifications from '@/components/Notifications';
-import FeatureTabs from '@/components/FeatureTabs';
+import PresenceMap from '@/components/PresenceMap';
 
 function NotificationButton({ onOpenNotifications }: { onOpenNotifications: () => void }) {
   const [notificationCount, setNotificationCount] = useState(0);
@@ -108,6 +108,7 @@ export default function DashboardPage() {
   const [activeChat, setActiveChat] = useState<any>(null);
   const [showFriends, setShowFriends] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chat' | 'map'>('chat');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -276,13 +277,64 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <FeatureTabs />
+        {/* Feature Tabs - In-page navigation */}
+        <div className="sticky top-0 z-20 px-6 pt-3 pb-2 bg-white/95 backdrop-blur border-b border-gray-100">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+                activeTab === 'chat'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              Anonymous Chat
+            </button>
+            <button
+              onClick={() => setActiveTab('map')}
+              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+                activeTab === 'map'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              Presence Map
+            </button>
+            <Link
+              href="/journal"
+              className="px-4 py-2 text-sm rounded-full font-semibold transition-all border bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+            >
+              Journal
+            </Link>
+            <Link
+              href="/habits"
+              className="px-4 py-2 text-sm rounded-full font-semibold transition-all border bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+            >
+              Habits
+            </Link>
+          </div>
+        </div>
 
-        {/* Anonymous Chat / Match Interface */}
+        {/* Tab Content */}
         <div className="p-6">
-          <MatchInterface
-            onMatchAccepted={(session) => setActiveChat(session)}
-          />
+          {activeTab === 'chat' && (
+            <MatchInterface
+              onMatchAccepted={(session) => setActiveChat(session)}
+            />
+          )}
+          {activeTab === 'map' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2">
+                  Live Social Presence
+                </h2>
+                <p className="text-gray-600">
+                  See where other mums are online right now across Singapore
+                </p>
+              </div>
+              <PresenceMap />
+            </div>
+          )}
         </div>
       </div>
     </div>
