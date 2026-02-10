@@ -87,12 +87,53 @@ export default function SignupPage() {
     }
   };
 
+  const validateProfileFields = () => {
+    // Check all required fields are filled
+    if (!profile.age) {
+      setError('Age is required');
+      return false;
+    }
+    if (!profile.maritalStatus) {
+      setError('Marital status is required');
+      return false;
+    }
+    if (!profile.employment) {
+      setError('Employment status is required');
+      return false;
+    }
+    if (profile.hobbies.length === 0) {
+      setError('Please add at least one hobby');
+      return false;
+    }
+    if (!profile.location) {
+      setError('Location is required');
+      return false;
+    }
+    if (!profile.hasBaby) {
+      setError('Please select if you have a baby');
+      return false;
+    }
+    if (!profile.postpartumStage) {
+      setError('Postpartum stage is required');
+      return false;
+    }
+    if (!profile.careerField) {
+      setError('Career field is required');
+      return false;
+    }
+    if (profile.careerField === 'Other' && !profile.careerOther.trim()) {
+      setError('Please specify your career field');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async () => {
     setError('');
     setLoading(true);
 
     try {
-      // Validate
+      // Validate credentials
       if (credentials.password !== credentials.confirmPassword) {
         setError('Passwords do not match');
         return;
@@ -266,7 +307,9 @@ export default function SignupPage() {
             {/* Marital Status */}
             <div className="border-b border-gray-100 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Marital Status</label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Marital Status <span className="text-red-500">*</span>
+                </label>
                 <button
                   onClick={() => {
                     const currentPrivacy = privacy.maritalStatus || 'no_one_can_see';
@@ -297,7 +340,9 @@ export default function SignupPage() {
             {/* Employment */}
             <div className="border-b border-gray-100 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Employment</label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Employment <span className="text-red-500">*</span>
+                </label>
                 <button
                   onClick={() => {
                     const currentPrivacy = privacy.employment || 'no_one_can_see';
@@ -329,7 +374,7 @@ export default function SignupPage() {
             <div className="border-b border-gray-100 pb-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-semibold text-gray-900">
-                  Hobbies ({profile.hobbies.length}/10)
+                  Hobbies ({profile.hobbies.length}/10) <span className="text-red-500">*</span>
                 </label>
                 <button
                   onClick={() => {
@@ -386,7 +431,9 @@ export default function SignupPage() {
             {/* Location */}
             <div className="border-b border-gray-100 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Location</label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Location <span className="text-red-500">*</span>
+                </label>
                 <button
                   onClick={() => {
                     const currentPrivacy = privacy.location || 'no_one_can_see';
@@ -417,7 +464,9 @@ export default function SignupPage() {
             {/* Has Baby */}
             <div className="border-b border-gray-100 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Has Baby</label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Has Baby <span className="text-red-500">*</span>
+                </label>
                 <button
                   onClick={() => {
                     const currentPrivacy = privacy.hasBaby || 'no_one_can_see';
@@ -448,7 +497,9 @@ export default function SignupPage() {
             {/* Postpartum Stage */}
             <div className="border-b border-gray-100 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Postpartum Stage</label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Postpartum Stage <span className="text-red-500">*</span>
+                </label>
                 <button
                   onClick={() => {
                     const currentPrivacy = privacy.postpartumStage || 'no_one_can_see';
@@ -479,7 +530,9 @@ export default function SignupPage() {
             {/* Career Field */}
             <div className="border-b border-gray-100 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Career Field</label>
+                <label className="block text-sm font-semibold text-gray-900">
+                  Career Field <span className="text-red-500">*</span>
+                </label>
                 <button
                   onClick={() => {
                     const currentPrivacy = privacy.careerField || 'no_one_can_see';
@@ -525,7 +578,12 @@ export default function SignupPage() {
                 Back
               </button>
               <button
-                onClick={() => setStep(3)}
+                onClick={() => {
+                  setError('');
+                  if (validateProfileFields()) {
+                    setStep(3);
+                  }
+                }}
                 className="btn-primary flex-1"
               >
                 Next: Create Account
