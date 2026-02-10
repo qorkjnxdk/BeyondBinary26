@@ -21,6 +21,7 @@ export interface User {
   privacy_settings?: Record<string, string>;
   account_status: string;
   penalty_end_date?: number;
+  last_active?: number;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -161,6 +162,7 @@ export function getMatchingUsers(excludeUserId?: string): User[] {
     privacy_settings: user.privacy_settings ? JSON.parse(user.privacy_settings) : {},
     account_status: user.account_status,
     penalty_end_date: user.penalty_end_date,
+    last_active: user.last_active,
   }));
 }
 
