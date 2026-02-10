@@ -217,6 +217,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       const otherUserId = session.user_a_id === user.user_id ? session.user_b_id : session.user_a_id;
       
       try {
+        console.log('[ChatInterface] Sending friend request and ending chat for:', otherUserId);
         const response = await fetch('/api/friend-requests', {
           method: 'POST',
           headers: {
@@ -230,17 +231,34 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         });
 
         const data = await response.json();
+        console.log('[ChatInterface] Friend request response:', data);
         
         if (!response.ok) {
+          console.error('[ChatInterface] Friend request failed:', data);
           alert(data.error || 'Failed to send friend request');
           return;
         }
+
+        alert('Friend request sent! They will need to accept it.');
+        
+        // Update session to track friend request before ending
+        await fetch('/api/chat', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`,
+          },
+          body: JSON.stringify({
+            sessionId: session.session_id,
+            action: 'friend-request',
+          }),
+        });
 
         // End the chat after sending friend request
         await endChat(false);
       } catch (error) {
         console.error('Error sending friend request:', error);
-        alert('An error occurred while sending friend request');
+        alert('An error occurred while sending friend request. Please try again.');
       }
     } else if (action === 'continue') {
       // Request to continue - check if mutual
@@ -275,6 +293,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
     const otherUserId = session.user_a_id === user.user_id ? session.user_b_id : session.user_a_id;
     
     try {
+      console.log('[ChatInterface] Sending friend request to:', otherUserId);
       const response = await fetch('/api/friend-requests', {
         method: 'POST',
         headers: {
@@ -288,16 +307,19 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       });
 
       const data = await response.json();
+      console.log('[ChatInterface] Friend request response:', data);
       
       if (!response.ok) {
+        console.error('[ChatInterface] Friend request failed:', data);
         alert(data.error || 'Failed to send friend request');
         return;
       }
 
       setFriendRequestSent(true);
+      alert('Friend request sent! They will need to accept it.');
       
       // Update session to track friend request
-      await fetch('/api/chat', {
+      const chatResponse = await fetch('/api/chat', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -309,10 +331,14 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         }),
       });
       
+      if (!chatResponse.ok) {
+        console.error('[ChatInterface] Failed to update chat session with friend request');
+      }
+      
       // Don't end the chat - they can continue talking
     } catch (error) {
       console.error('Error sending friend request:', error);
-      alert('An error occurred while sending friend request');
+      alert('An error occurred while sending friend request. Please try again.');
     }
   };
 
@@ -608,12 +634,17 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         {minimumTimeMet && chatContinued && !showFriendPrompt && (
           <button
             onClick={handleAddFriend}
-            className="mt-3 w-full px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            disabled={friendRequestSent}
+            className={`mt-3 w-full px-5 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+              friendRequestSent
+                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg'
+            }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
-            Add {otherUserName} as Friend
+            {friendRequestSent ? 'Friend Request Sent' : `Add ${otherUserName} as Friend`}
           </button>
         )}
 

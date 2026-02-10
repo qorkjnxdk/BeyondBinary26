@@ -10,6 +10,17 @@ interface Friend {
   createdAt: number;
 }
 
+interface FriendRequest {
+  request_id: string;
+  sender_id: string;
+  receiver_id: string;
+  otherUser: {
+    userId: string;
+    realName: string;
+  };
+  created_at: number;
+}
+
 export default function FriendList({
   isOpen,
   onClose,
@@ -20,6 +31,7 @@ export default function FriendList({
   onSelectFriend: (friendId: string) => void;
 }) {
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [search, setSearch] = useState('');
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -27,6 +39,7 @@ export default function FriendList({
   useEffect(() => {
     if (isOpen) {
       loadFriends();
+      loadFriendRequests();
     }
   }, [isOpen]);
 
@@ -41,6 +54,75 @@ export default function FriendList({
       }
     } catch (error) {
       console.error('Error loading friends:', error);
+    }
+  };
+
+  const loadFriendRequests = async () => {
+    try {
+      const response = await fetch('/api/friend-requests?type=received', {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      const data = await response.json();
+      if (data.requests) {
+        setFriendRequests(data.requests);
+      }
+    } catch (error) {
+      console.error('Error loading friend requests:', error);
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const response = await fetch('/api/friend-requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          requestId,
+          action: 'accept',
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        // Reload friends and requests
+        loadFriends();
+        loadFriendRequests();
+      } else {
+        alert(data.error || 'Failed to accept friend request');
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      alert('An error occurred while accepting friend request');
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      const response = await fetch('/api/friend-requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          requestId,
+          action: 'decline',
+        }),
+      });
+
+      if (response.ok) {
+        // Reload requests
+        loadFriendRequests();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to decline friend request');
+      }
+    } catch (error) {
+      console.error('Error declining friend request:', error);
+      alert('An error occurred while declining friend request');
     }
   };
 
@@ -89,6 +171,46 @@ export default function FriendList({
         </div>
 
         <div className="overflow-y-auto h-[calc(100vh-180px)]">
+          {/* Friend Requests Section */}
+          {friendRequests.length > 0 && (
+            <div className="p-4 border-b border-gray-200 bg-yellow-50">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Friend Requests ({friendRequests.length})</h3>
+              </div>
+              {friendRequests.map((request) => (
+                <div
+                  key={request.request_id}
+                  className="p-4 rounded-xl bg-white border-2 border-yellow-200 mb-3 shadow-sm"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                      {request.otherUser.realName.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 truncate">{request.otherUser.realName}</div>
+                      <div className="text-xs text-gray-500">wants to be friends</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAcceptRequest(request.request_id)}
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all text-sm"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleDeclineRequest(request.request_id)}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all text-sm"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {onlineFriends.length > 0 && (
             <div className="p-4">
               <div className="flex items-center gap-2 mb-4">

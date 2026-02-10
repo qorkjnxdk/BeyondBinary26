@@ -7,6 +7,53 @@ import ChatInterface from '@/components/ChatInterface';
 import MatchInterface from '@/components/MatchInterface';
 import FriendList from '@/components/FriendList';
 
+function FriendRequestButton({ onOpenFriends }: { onOpenFriends: () => void }) {
+  const [requestCount, setRequestCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!token) return;
+
+    const loadRequests = () => {
+      fetch('/api/friend-requests?type=received', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.requests) {
+            setRequestCount(data.requests.length);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    };
+
+    loadRequests();
+    const interval = setInterval(loadRequests, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading || requestCount === 0) return null;
+
+  return (
+    <button
+      onClick={onOpenFriends}
+      className="relative px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+    >
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+      </svg>
+      Requests
+      {requestCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          {requestCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -115,6 +162,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <FriendRequestButton onOpenFriends={() => setShowFriends(true)} />
             <button
               onClick={() => setShowFriends(!showFriends)}
               className="px-5 py-2.5 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center gap-2"
