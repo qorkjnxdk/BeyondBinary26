@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
     "better-auth": "^1.0.0",
     "better-sqlite3": "^12.6.2",

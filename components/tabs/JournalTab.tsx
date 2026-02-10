@@ -1,12 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import JournalResponse from '@/components/JournalResponse';
 
 interface JournalEntry {
   entry_id: string;
   content: string;
   sentiment: number | null;
   created_at: number;
+}
+
+interface AIResponse {
+  message: string;
+  suggestions: string[];
 }
 
 interface JournalTabProps {
@@ -18,6 +24,12 @@ export default function JournalTab({ isActive }: JournalTabProps) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [updating, setUpdating] = useState(false);
+
+  // Temporary AI responses (not stored in DB)
+  const [aiResponses, setAiResponses] = useState<Record<string, AIResponse>>({});
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
 
@@ -41,6 +53,8 @@ export default function JournalTab({ isActive }: JournalTabProps) {
     setSaving(true);
     try {
       const token = getToken();
+
+      // Save the entry
       const res = await fetch('/api/journal', {
         method: 'POST',
         headers: {
@@ -50,9 +64,34 @@ export default function JournalTab({ isActive }: JournalTabProps) {
         body: JSON.stringify({ content }),
       });
       const data = await res.json();
+
       if (res.ok && data.entry) {
         setEntries([data.entry, ...entries]);
         setContent('');
+
+        // Immediately generate AI response for the new entry
+        const aiRes = await fetch('/api/journal/generate-response', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: data.entry.content,
+            sentiment: data.entry.sentiment,
+          }),
+        });
+        const aiData = await aiRes.json();
+
+        if (aiRes.ok) {
+          setAiResponses(prev => ({
+            ...prev,
+            [data.entry.entry_id]: {
+              message: aiData.message,
+              suggestions: aiData.suggestions,
+            },
+          }));
+        }
       } else {
         alert(data.error || 'Failed to save entry');
       }
@@ -62,6 +101,101 @@ export default function JournalTab({ isActive }: JournalTabProps) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEdit = (entry: JournalEntry) => {
+    setEditingId(entry.entry_id);
+    setEditContent(entry.content);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditContent('');
+  };
+
+  const handleUpdate = async (entryId: string) => {
+    if (!editContent.trim()) return;
+    setUpdating(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/journal/${entryId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: editContent }),
+      });
+      const data = await res.json();
+      if (res.ok && data.entry) {
+        setEntries(entries.map(e => e.entry_id === entryId ? data.entry : e));
+        setEditingId(null);
+        setEditContent('');
+
+        // Regenerate AI response for the updated entry
+        const aiRes = await fetch('/api/journal/generate-response', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: data.entry.content,
+            sentiment: data.entry.sentiment,
+          }),
+        });
+        const aiData = await aiRes.json();
+
+        if (aiRes.ok) {
+          setAiResponses(prev => ({
+            ...prev,
+            [entryId]: {
+              message: aiData.message,
+              suggestions: aiData.suggestions,
+            },
+          }));
+        }
+      } else {
+        alert(data.error || 'Failed to update entry');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error updating entry');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDelete = async (entryId: string) => {
+    if (!confirm('Are you sure you want to delete this entry? This cannot be undone.')) {
+      return;
+    }
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/journal/${entryId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEntries(entries.filter(e => e.entry_id !== entryId));
+      } else {
+        alert(data.error || 'Failed to delete entry');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error deleting entry');
+    }
+  };
+
+  const handleDismissResponse = (entryId: string) => {
+    setAiResponses(prev => {
+      const newResponses = { ...prev };
+      delete newResponses[entryId];
+      return newResponses;
+    });
   };
 
   const sentimentLabel = (score: number | null) => {
@@ -78,7 +212,7 @@ export default function JournalTab({ isActive }: JournalTabProps) {
           Private Journal
         </h2>
         <p className="text-sm text-gray-600 mb-4">
-          A quiet space just for you. Nothing here is shared or used for matching.
+          A quiet space just for you, nothing here is shared. Feel free to answer the prompt or just share your thoughts.
         </p>
         <textarea
           value={content}
@@ -105,17 +239,83 @@ export default function JournalTab({ isActive }: JournalTabProps) {
         ) : (
           entries.map((entry) => (
             <div key={entry.entry_id} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-500">
-                  {new Date(entry.created_at).toLocaleString()}
-                </span>
-                {entry.sentiment !== null && (
-                  <span className="text-xs font-medium text-gray-600">
-                    {sentimentLabel(entry.sentiment)}
-                  </span>
-                )}
-              </div>
-              <p className="text-gray-800 whitespace-pre-line text-sm leading-relaxed">{entry.content}</p>
+              {editingId === entry.entry_id ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">
+                      {new Date(entry.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900 placeholder-gray-400 min-h-[120px]"
+                  />
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={updating}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleUpdate(entry.entry_id)}
+                      disabled={updating || !editContent.trim()}
+                      className="px-4 py-2 bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50"
+                    >
+                      {updating ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">
+                      {new Date(entry.created_at).toLocaleString()}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      {entry.sentiment !== null && (
+                        <span className="text-xs font-medium text-gray-600">
+                          {sentimentLabel(entry.sentiment)}
+                        </span>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(entry)}
+                          className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(entry.entry_id)}
+                          className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-800 whitespace-pre-line text-sm leading-relaxed">{entry.content}</p>
+
+                  {/* Temporary AI Response Section - only shown if response exists */}
+                  {aiResponses[entry.entry_id] && (
+                    <div className="mt-4">
+                      <JournalResponse
+                        message={aiResponses[entry.entry_id].message}
+                        suggestions={aiResponses[entry.entry_id].suggestions}
+                        sentiment={entry.sentiment}
+                      />
+                      <button
+                        onClick={() => handleDismissResponse(entry.entry_id)}
+                        className="mt-2 text-xs text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}

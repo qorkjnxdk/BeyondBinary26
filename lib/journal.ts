@@ -108,7 +108,13 @@ export function createJournalEntry(userId: string, content: string): JournalEntr
      VALUES (?, ?, ?, ?, ?)`
   ).run(entryId, userId, content, sentiment, now);
 
-  return { entry_id: entryId, user_id: userId, content, sentiment, created_at: now };
+  return {
+    entry_id: entryId,
+    user_id: userId,
+    content,
+    sentiment,
+    created_at: now
+  };
 }
 
 export function getJournalEntries(userId: string, limit: number = 20): JournalEntry[] {
@@ -126,4 +132,39 @@ export function getJournalEntries(userId: string, limit: number = 20): JournalEn
     sentiment: row.sentiment,
     created_at: row.created_at,
   }));
+}
+
+export function updateJournalEntry(entryId: string, userId: string, content: string): JournalEntry | null {
+  const sentiment = computeSentiment(content);
+
+  const result = db.prepare(
+    `UPDATE journal_entries
+     SET content = ?, sentiment = ?
+     WHERE entry_id = ? AND user_id = ?`
+  ).run(content, sentiment, entryId, userId);
+
+  if (result.changes === 0) {
+    return null;
+  }
+
+  const row = db.prepare(
+    `SELECT * FROM journal_entries WHERE entry_id = ?`
+  ).get(entryId) as any;
+
+  return {
+    entry_id: row.entry_id,
+    user_id: row.user_id,
+    content: row.content,
+    sentiment: row.sentiment,
+    created_at: row.created_at,
+  };
+}
+
+export function deleteJournalEntry(entryId: string, userId: string): boolean {
+  const result = db.prepare(
+    `DELETE FROM journal_entries
+     WHERE entry_id = ? AND user_id = ?`
+  ).run(entryId, userId);
+
+  return result.changes > 0;
 }
