@@ -23,6 +23,10 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   const [chatContinued, setChatContinued] = useState(false); // Track if user chose to continue
   const [friendRequestSent, setFriendRequestSent] = useState(false); // Track if friend request was sent
   const [mutualFriendRequest, setMutualFriendRequest] = useState<any>(null); // Track mutual friend request state
+  const [incomingFriendRequest, setIncomingFriendRequest] = useState<{
+    requestId: string;
+    senderName: string;
+  } | null>(null); // In-chat popup when other user sends a friend request
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -82,6 +86,18 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           }
         });
 
+        // Friend request received while in chat
+        socket.on('friend-request-received', (data: any) => {
+          if (!mounted) return;
+          // If this friend request is related to this session (or no sessionId specified), show popup
+          if (!data.sessionId || data.sessionId === session.session_id) {
+            setIncomingFriendRequest({
+              requestId: data.requestId,
+              senderName: data.senderName || 'This user',
+            });
+          }
+        });
+
         // On reconnect, rejoin room and catch up via REST
         socket.on('connect', () => {
           socket.emit('join-session', session.session_id);
@@ -103,6 +119,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         socket.emit('leave-session', session.session_id);
         socket.off('new-message');
         socket.off('session-update');
+        socket.off('friend-request-received');
         socket.off('connect');
       }
     };
@@ -358,6 +375,38 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
     }
   };
 
+  const handleAcceptFriendRequestInChat = async () => {
+    if (!incomingFriendRequest) return;
+    try {
+      const response = await fetch('/api/friend-requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          requestId: incomingFriendRequest.requestId,
+          action: 'accept',
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        console.error('[ChatInterface] Failed to accept friend request in chat:', data);
+        alert(data.error || 'Failed to accept friend request');
+        return;
+      }
+      setIncomingFriendRequest(null);
+      alert(`You are now friends with ${incomingFriendRequest.senderName}.`);
+    } catch (error) {
+      console.error('Error accepting friend request in chat:', error);
+      alert('An error occurred. Please try again.');
+    }
+  };
+
+  const handleDismissFriendRequestInChat = () => {
+    setIncomingFriendRequest(null);
+  };
+
   const handleEarlyExit = async () => {
     if (timeRemaining > 0) {
       setEarlyExitRequested(true);
@@ -458,7 +507,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   const displayMyName = myRealName || (session.myRandomName || session.user_a_random_name || session.user_b_random_name || 'You');
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
+    <div className="h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white relative">
       {/* Header */}
       <header className="bg-white shadow-md border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -669,8 +718,8 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           </button>
         </div>
 
-        {/* Add as Friend button - shown after minimum time if chat continued (only for anonymous chats) */}
-        {!isFriendChat && minimumTimeMet && chatContinued && !showFriendPrompt && (
+        {/* Add as Friend button - after minimum time, available to both sides in anonymous chats */}
+        {!isFriendChat && minimumTimeMet && !showFriendPrompt && !showContinuePrompt && (
           <button
             onClick={handleAddFriend}
             disabled={friendRequestSent}
@@ -708,6 +757,32 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           </button>
         )}
       </div>
+
+      {/* In-chat friend request popup */}
+      {incomingFriendRequest && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Friend request</h3>
+            <p className="text-gray-700 mb-4">
+              {incomingFriendRequest.senderName} wants to add you as a friend.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleDismissFriendRequestInChat}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+              >
+                Later
+              </button>
+              <button
+                onClick={handleAcceptFriendRequestInChat}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-primary-600 to-accent-600 text-white text-sm font-semibold hover:shadow-lg"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

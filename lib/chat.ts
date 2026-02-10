@@ -1,6 +1,5 @@
 import db from './db';
 import { v4 as uuidv4 } from 'uuid';
-import { generateRandomName } from './matching';
 import { getUserById } from './auth';
 
 export interface ChatSession {
@@ -27,6 +26,16 @@ export interface Message {
   is_deleted: boolean;
 }
 
+// Simple per-session random alias generator for chat
+function generateSessionAlias(): string {
+  const colors = ['Blue', 'Green', 'Purple', 'Pink', 'Red', 'Orange', 'Yellow', 'Teal', 'Indigo', 'Violet'];
+  const nouns = ['Butterfly', 'Ocean', 'Cloud', 'Star', 'Moon', 'Sun', 'River', 'Mountain', 'Forest', 'Flower'];
+  const number = Math.floor(Math.random() * 100);
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  return `${color}${noun}${number}`;
+}
+
 // Create a new chat session
 export function createChatSession(
   userAId: string,
@@ -36,8 +45,8 @@ export function createChatSession(
 ): ChatSession {
   const sessionId = uuidv4();
   const now = Date.now();
-  const userARandomName = generateRandomName();
-  const userBRandomName = generateRandomName();
+  const userARandomName = generateSessionAlias();
+  const userBRandomName = generateSessionAlias();
 
   try {
     // Verify users exist before inserting (foreign key constraint)

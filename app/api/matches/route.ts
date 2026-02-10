@@ -27,10 +27,11 @@ export async function POST(request: NextRequest) {
     cancelAllInvites(userId);
     console.log('[API] Cleared all previous pending invites for user:', userId);
 
-    // Store the current prompt so it's visible to others even before sending invites
-    const { updateCurrentPrompt } = await import('@/lib/auth');
+    // Store the current prompt and set matching status
+    const { updateCurrentPrompt, setMatchingStatus } = await import('@/lib/auth');
     updateCurrentPrompt(userId, validated.prompt);
-    console.log('[API] Updated current prompt for user:', userId);
+    setMatchingStatus(userId, validated.prompt);
+    console.log('[API] Updated current prompt and set matching status for user:', userId);
 
     // Find matches
     console.log('[API] Finding matches for user:', userId, 'with prompt:', validated.prompt);
@@ -76,6 +77,73 @@ export async function POST(request: NextRequest) {
       { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
+  }
+}
+
+// GET endpoint to fetch current matches for auto-refresh
+export async function GET(request: NextRequest) {
+  try {
+    const { userId } = requireAuth(request);
+    
+    // Get user's current prompt from online_users
+    const db = (await import('@/lib/db')).default;
+    const onlineUser = db.prepare('SELECT matching_prompt FROM online_users WHERE user_id = ?').get(userId) as any;
+    
+    if (!onlineUser || !onlineUser.matching_prompt) {
+      return NextResponse.json({ matches: [], count: 0 });
+    }
+
+    const currentPrompt = onlineUser.matching_prompt;
+    
+    // Find matches
+    const matches = findMatches(userId, currentPrompt);
+    
+    // Format matches
+    const formattedMatches = matches.map(match => {
+      const visibleData = getVisibleProfileData(userId, match.user.user_id, 'anonymous');
+      const recentPrompts = getRecentPrompts(match.user.user_id, 1);
+      const otherUserPrompt = recentPrompts.length > 0 ? recentPrompts[0] : null;
+      
+      return {
+        userId: match.user.user_id,
+        randomName: match.randomName,
+        similarityScore: match.similarityScore,
+        visibleProfile: visibleData,
+        otherUserPrompt: otherUserPrompt,
+      };
+    });
+
+    return NextResponse.json({
+      matches: formattedMatches,
+      count: formattedMatches.length,
+      prompt: currentPrompt,
+    });
+  } catch (error: any) {
+    console.error('Error in GET /api/matches:', error);
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// DELETE endpoint to clear matching status (leave matching mode)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId } = requireAuth(request);
+    
+    // Clear matching status and cancel all pending invites
+    const { clearMatchingStatus } = await import('@/lib/auth');
+    clearMatchingStatus(userId);
+    cancelAllInvites(userId);
+    
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error in DELETE /api/matches:', error);
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 

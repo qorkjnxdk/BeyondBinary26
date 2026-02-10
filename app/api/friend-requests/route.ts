@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/middleware';
 import { sendFriendRequest, getPendingFriendRequests, acceptFriendRequest, declineFriendRequest } from '@/lib/friendRequests';
 import { createFriendship, areFriends } from '@/lib/friends';
 import { getUserById } from '@/lib/auth';
+import { getIO } from '@/lib/socketServer';
+import db from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,6 +35,22 @@ export async function POST(request: NextRequest) {
     console.log('[API] Sending friend request...');
     const friendRequest = sendFriendRequest(userId, receiverId, sessionId);
     console.log('[API] Friend request created:', friendRequest.request_id);
+
+    // Real-time notify receiver if online (including if they are in a chat)
+    try {
+      const io = getIO();
+      const sender = getUserById(userId);
+      if (io && sender) {
+        io.to(`user:${receiverId}`).emit('friend-request-received', {
+          requestId: friendRequest.request_id,
+          senderId: sender.user_id,
+          senderName: sender.real_name,
+          sessionId: sessionId || null,
+        });
+      }
+    } catch (e) {
+      console.error('[API] Error emitting friend-request-received socket event:', e);
+    }
 
     return NextResponse.json({ 
       success: true,
