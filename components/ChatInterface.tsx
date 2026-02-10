@@ -14,7 +14,7 @@ interface ChatInterfaceProps {
 export default function ChatInterface({ session, user, onChatEnd }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState('');
-  const [timeRemaining, setTimeRemaining] = useState(120); // 2 minutes in seconds for testing
+  const [timeRemaining, setTimeRemaining] = useState(30); // 30 seconds for testing
   const [minimumTimeMet, setMinimumTimeMet] = useState(false);
   const [showContinuePrompt, setShowContinuePrompt] = useState(false);
   const [showFriendPrompt, setShowFriendPrompt] = useState(false);
@@ -109,9 +109,9 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
   }, [session.session_id]);
 
   useEffect(() => {
-    // Timer countdown - 2 minutes for testing
+    // Timer countdown - 30 seconds for testing
     const elapsed = Math.floor((Date.now() - session.started_at) / 1000);
-    const remaining = Math.max(0, 120 - elapsed);
+    const remaining = Math.max(0, 30 - elapsed);
     setTimeRemaining(remaining);
 
     if (remaining === 0 && !minimumTimeMet) {
@@ -121,7 +121,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
 
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - session.started_at) / 1000);
-      const remaining = Math.max(0, 120 - elapsed);
+      const remaining = Math.max(0, 30 - elapsed);
       setTimeRemaining(remaining);
 
       if (remaining === 0 && !minimumTimeMet) {

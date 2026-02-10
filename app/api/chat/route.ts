@@ -177,9 +177,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true });
     } else if (action === 'early-exit-request') {
       const elapsed = Date.now() - session.started_at;
-      const twoMinutes = 2 * 60 * 1000; // Changed to 2 minutes for testing
+      const thirtySeconds = 30 * 1000; // Changed to 30 seconds for testing
 
-      if (elapsed < twoMinutes) {
+      if (elapsed < thirtySeconds) {
         // Store early exit request in database
         db.prepare('UPDATE chat_sessions SET early_exit_requested_by = ? WHERE session_id = ?').run(userId, sessionId);
 
