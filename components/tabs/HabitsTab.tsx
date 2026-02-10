@@ -25,8 +25,21 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [expandedHabit, setExpandedHabit] = useState<string | null>(null);
   const [historicalData, setHistoricalData] = useState<Record<string, HabitLog[]>>({});
+  const [socialCounts, setSocialCounts] = useState<Record<string, number>>({});
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
+
+  const getDateSuffix = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getSocialKey = (habitId: string) => {
+    return `habitSocialCount:${habitId}:${getDateSuffix()}`;
+  };
 
   // Generate mock historical data for past 7 days (excluding today)
   const generateMockHistory = (habitId: string): HabitLog[] => {
@@ -62,53 +75,24 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
   // Memoized social context - only generates once per historical data change
   // Shows positive message if >50% success rate, negative if <50%
   const socialContextMap = useMemo(() => {
-    const generateSocialContext = (habitId: string, completionRate: number): string => {
-      // Each habit has one positive and one negative/struggle context
-      const contexts: Record<string, { positive: string; negative: string }> = {
-        'drink_water': {
-          positive: `${Math.floor(Math.random() * 20) + 15} other mothers stayed hydrated today`,
-          negative: `${Math.floor(Math.random() * 15) + 10} other mothers finding it hard to drink enough water`,
-        },
-        'sleep': {
-          positive: `${Math.floor(Math.random() * 15) + 10} other mothers got decent rest last night`,
-          negative: `${Math.floor(Math.random() * 25) + 20} other mothers struggled with sleep this week`,
-        },
-        'go_outside': {
-          positive: `${Math.floor(Math.random() * 20) + 10} other mothers went outside today`,
-          negative: `${Math.floor(Math.random() * 15) + 12} other mothers haven't made it outside yet`,
-        },
-        'eat_meal': {
-          positive: `${Math.floor(Math.random() * 25) + 15} other mothers ate a full meal today`,
-          negative: `${Math.floor(Math.random() * 18) + 10} other mothers are struggling to eat regularly`,
-        },
-        'move': {
-          positive: `${Math.floor(Math.random() * 20) + 12} other mothers stretched today`,
-          negative: `${Math.floor(Math.random() * 15) + 10} other mothers finding it hard to move their body`,
-        },
-        'rest': {
-          positive: `${Math.floor(Math.random() * 18) + 10} other mothers took time to rest today`,
-          negative: `${Math.floor(Math.random() * 20) + 15} other mothers struggling to find time to rest`,
-        },
-      };
-
-      const contextPair = contexts[habitId] || {
-        positive: 'Others are tracking this too',
-        negative: 'Others find this challenging too'
-      };
-
-      // Show positive if >50% completion, negative if <50%
-      return completionRate > 0.5 ? contextPair.positive : contextPair.negative;
+    // Always-positive social messages per habit, using a shared random count
+    const contexts: Record<string, (count: number) => string> = {
+      drink_water: (count) => `${count} other mothers stayed hydrated today`,
+      sleep: (count) => `${count} other mothers got decent rest last night`,
+      go_outside: (count) => `${count} other mothers went outside today`,
+      eat_meal: (count) => `${count} other mothers ate a full meal today`,
+      move: (count) => `${count} other mothers stretched today`,
+      rest: (count) => `${count} other mothers took time to rest today`,
     };
 
     const map: Record<string, string> = {};
     habits.forEach(habit => {
-      const logs = historicalData[habit.id] || [];
-      const completedCount = logs.filter(log => log.completed).length;
-      const rate = logs.length > 0 ? completedCount / logs.length : 0.5;
-      map[habit.id] = generateSocialContext(habit.id, rate);
+      const count = socialCounts[habit.id] ?? 0;
+      const makeMessage = contexts[habit.id] || ((c: number) => `${c} other mothers are doing this today`);
+      map[habit.id] = makeMessage(count);
     });
     return map;
-  }, [habits, historicalData]);
+  }, [habits, socialCounts]);
 
   // Memoized gentle insight - only generates once per historical data change
   const insight = useMemo(() => {
@@ -212,6 +196,80 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
     loadHabits();
   }, [isActive]);
 
+  // Initialize per-habit social counts once per day
+  useEffect(() => {
+    if (!isActive || habits.length === 0) return;
+    if (typeof window === 'undefined') return;
+
+    const nextCounts: Record<string, number> = {};
+
+    habits.forEach((habit) => {
+      const key = getSocialKey(habit.id);
+      const stored = localStorage.getItem(key);
+      let value: number;
+
+      if (stored !== null && !isNaN(parseInt(stored, 10))) {
+        value = parseInt(stored, 10);
+      } else {
+        // Baseline ranges (similar to previous random ranges)
+        const ranges: Record<string, { min: number; max: number }> = {
+          'drink_water': { min: 15, max: 34 },
+          'sleep': { min: 10, max: 24 },
+          'go_outside': { min: 10, max: 29 },
+          'eat_meal': { min: 15, max: 39 },
+          'move': { min: 12, max: 31 },
+          'rest': { min: 10, max: 27 },
+        };
+        const range = ranges[habit.id] || { min: 10, max: 30 };
+        value = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+        localStorage.setItem(key, String(value));
+      }
+
+      nextCounts[habit.id] = value;
+    });
+
+    setSocialCounts(nextCounts);
+  }, [isActive, habits]);
+
+  // Auto-increment social counts every 1–2 minutes (demo effect)
+  useEffect(() => {
+    if (!isActive || habits.length === 0) return;
+    if (typeof window === 'undefined') return;
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = () => {
+      const delay = 60000 + Math.random() * 60000; // 1–2 minutes
+      timeoutId = setTimeout(() => {
+        setSocialCounts(prev => {
+          const updated: Record<string, number> = { ...prev };
+          habits.forEach(habit => {
+            const key = getSocialKey(habit.id);
+            const current =
+              typeof updated[habit.id] === 'number'
+                ? updated[habit.id]
+                : (() => {
+                    const stored = localStorage.getItem(key);
+                    const parsed = stored !== null ? parseInt(stored, 10) : NaN;
+                    return !isNaN(parsed) ? parsed : 0;
+                  })();
+            const next = current + 1;
+            updated[habit.id] = next;
+            localStorage.setItem(key, String(next));
+          });
+          return updated;
+        });
+        scheduleNext();
+      }, delay);
+    };
+
+    scheduleNext();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isActive, habits]);
+
   const toggleHabit = async (habitId: HabitType) => {
     setSavingId(habitId);
     try {
@@ -229,6 +287,20 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
         alert(data.error || 'Failed to log habit');
       } else {
         loadHabits();
+        // For demo: adjust the social count for this habit based on new completion state
+        const key = getSocialKey(habitId);
+        setSocialCounts(prev => {
+          const current = prev[habitId] ?? 0;
+          // If it was previously completed, we toggled off -> decrement.
+          // If it was previously not completed, we toggled on -> increment.
+          const wasCompleted = habits.find(h => h.id === habitId)?.completed ?? false;
+          const delta = wasCompleted ? -1 : 1;
+          const next = current + delta;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(key, String(next));
+          }
+          return { ...prev, [habitId]: next };
+        });
       }
     } catch (e) {
       console.error(e);

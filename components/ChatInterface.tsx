@@ -783,6 +783,23 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           </div>
         </div>
       )}
+
+      {/* Bottom-right hotline button (also visible during chat) */}
+      <a
+        href="tel:+6599990000"
+        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white text-sm font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+      >
+        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/20">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.25 6.75C2.25 5.507 3.257 4.5 4.5 4.5h2.25c.621 0 1.152.363 1.38.923l1.103 2.758a1.5 1.5 0 01-.376 1.636l-1.21 1.21a.75.75 0 000 1.06 11.25 11.25 0 004.242 2.778.75.75 0 00.806-.162l1.346-1.346a1.5 1.5 0 011.487-.375l2.758 1.103c.56.224.923.759.923 1.38V19.5c0 1.243-1.007 2.25-2.25 2.25h-.75C9.473 21.75 2.25 14.527 2.25 5.25v1.5z"
+            />
+          </svg>
+        </span>
+      </a>
     </div>
   );
 }
