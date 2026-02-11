@@ -40,7 +40,7 @@ cd BeyondBinary26
 npm install
 ```
 
-3. Create a `.env.local` file:
+3. Create a `.env.local` file and input your Gemini API Key:
 ```
 GEMINI_API_KEY=your-gemini-api-key-here
 ```
@@ -54,7 +54,9 @@ npm run dev
 
 6. **Testing Anonymous Chat:** To test the anonymous chat matching, open two different browsers and log in with a different account in each. Use the two accounts below or sign up for new ones to experience the entire sign-up process!
 
-7. If Signing Up fails for whatever reason, feel free to play around with these two profiles:
+7. **Testing Journal Sentiment Analysis:** Note that upon entering an entry in the journal tab, it could take a few seconds for a response to be generated.
+
+8. If Signing Up fails for whatever reason, feel free to play around with these two profiles:
 - Username: sr@gmail.com / Password: Password123
 - Username: sr10@gmail.com / Password: Password123
 
