@@ -234,6 +234,11 @@ export default function PresenceMap() {
 
   const source = scope === "friends" ? friends : everyone;
 
+  // Helper to check if a user is in friends list
+  const isFriend = (userId: string) => {
+    return friends.some((f: any) => f.userId === userId);
+  };
+
   const filtered = source.filter((u: any) => {
 
     if (!u.location) return false;
@@ -341,6 +346,7 @@ export default function PresenceMap() {
                     if (!coord) return null;
 
                     const { left, top } = latLngToPercent(coord.lat, coord.lng);
+                    const userIsFriend = isFriend(user.userId);
 
                     return (
                         <button
@@ -359,11 +365,11 @@ export default function PresenceMap() {
                             className="transition-all hover:scale-105 group"
                         >
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
-                              scope === "friends"
+                              userIsFriend
                                   ? "bg-gradient-to-r from-primary-500 to-accent-500"
                                   : "bg-gradient-to-r from-gray-500 to-gray-700"
                           }`}>
-                            {user.realName?.[0] || "U"}
+                            {userIsFriend ? (user.realName?.[0] || "U") : "?"}
                           </div>
 
                           {user.online && (
@@ -381,6 +387,7 @@ export default function PresenceMap() {
                     if (!coord) return null;
 
                     const { left, top } = latLngToPercent(coord.lat, coord.lng);
+                    const userIsFriend = isFriend(selectedUser.userId);
 
                     return (
                         <div
@@ -396,7 +403,7 @@ export default function PresenceMap() {
                           <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-3 w-48">
 
                             <div className="font-semibold text-gray-900">
-                              {selectedUser.realName}
+                              {userIsFriend ? selectedUser.realName : "Anonymous User"}
                             </div>
 
                             <div className="text-xs text-gray-500">
@@ -408,6 +415,12 @@ export default function PresenceMap() {
                                   ? <span className="text-green-500">● Online</span>
                                   : <span className="text-gray-400">Offline</span>}
                             </div>
+
+                            {!userIsFriend && (
+                              <div className="text-xs text-gray-400 mt-1 italic">
+                                Add as friend to see name
+                              </div>
+                            )}
 
                             <button
                                 onClick={() => setSelectedUser(null)}
