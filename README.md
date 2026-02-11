@@ -66,8 +66,10 @@ npm run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
-   
-6. If Signing Up fails for whatever reason, feel free to play around with these two profiles
+
+6. **Testing Anonymous Chat:** To test the anonymous chat matching, open two different browsers and log in with a different account in each. Use the two accounts below or sign up for new ones to experience the entire sign-up process! 
+
+7. If Signing Up fails for whatever reason, feel free to play around with these two profiles:
 - Username: sr@gmail.com / Password: Password123
 - Username: sr10@gmail.com / Password: Password123
 
