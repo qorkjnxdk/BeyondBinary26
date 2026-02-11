@@ -66,6 +66,17 @@ export function getUserByEmail(email: string): User | null {
   };
 }
 
+export function getUserByNric(nric: string): User | null {
+  const user = db.prepare('SELECT * FROM users WHERE singpass_nric = ?').get(nric) as any;
+  if (!user) return null;
+
+  return {
+    ...user,
+    hobbies: user.hobbies ? JSON.parse(user.hobbies) : [],
+    privacy_settings: user.privacy_settings ? JSON.parse(user.privacy_settings) : {},
+  };
+}
+
 export function createUser(data: {
   singpassNric: string;
   email: string;

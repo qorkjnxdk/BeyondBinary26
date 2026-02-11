@@ -59,7 +59,7 @@ export default function SignupPage() {
     confirmPassword: '',
   });
 
-  const handleSingpassVerify = () => {
+  const handleSingpassVerify = async () => {
     // Simulated Singpass verification
     // In production, this would redirect to Singpass OAuth
     if (!singpassData.nric || !singpassData.name) {
@@ -70,6 +70,23 @@ export default function SignupPage() {
       setError('Only women are allowed on this platform');
       return;
     }
+
+    // Check for duplicate NRIC early
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/auth/check-nric?nric=${encodeURIComponent(singpassData.nric)}`);
+      const data = await res.json();
+      if (data.exists) {
+        setError('An account with this NRIC already exists');
+        return;
+      }
+    } catch {
+      // If check fails, continue — the signup API will catch duplicates
+    } finally {
+      setLoading(false);
+    }
+
     setStep(2);
   };
 
@@ -267,9 +284,10 @@ export default function SignupPage() {
             </div>
             <button
               onClick={handleSingpassVerify}
-              className="btn-primary w-full"
+              disabled={loading}
+              className="btn-primary w-full disabled:opacity-50"
             >
-              Verify & Continue
+              {loading ? 'Checking...' : 'Verify & Continue'}
             </button>
           </div>
         )}

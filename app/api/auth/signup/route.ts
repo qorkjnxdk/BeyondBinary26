@@ -23,8 +23,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if NRIC already exists
+    const { getUserByEmail, getUserByNric } = await import('@/lib/auth');
+    if (getUserByNric(validated.singpassNric)) {
+      return NextResponse.json(
+        { error: 'An account with this NRIC already exists' },
+        { status: 400 }
+      );
+    }
+
     // Check if email already exists
-    const { getUserByEmail } = await import('@/lib/auth');
     if (getUserByEmail(validated.email)) {
       return NextResponse.json(
         { error: 'Email already registered' },
