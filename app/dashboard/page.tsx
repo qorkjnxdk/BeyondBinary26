@@ -44,13 +44,13 @@ function NotificationButton({ onOpenNotifications }: { onOpenNotifications: () =
   return (
     <button
       onClick={onOpenNotifications}
-      className="relative px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+      className="relative px-4 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium hover:shadow-md transition-all duration-200 flex items-center gap-2"
     >
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
       </svg>
       {notificationCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+        <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
           {notificationCount}
         </span>
       )}
@@ -90,14 +90,14 @@ function FriendRequestButton({ onOpenFriends }: { onOpenFriends: () => void }) {
   return (
     <button
       onClick={onOpenFriends}
-      className="relative px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+      className="relative px-4 py-2.5 bg-gradient-to-r from-accent-500 to-accent-600 text-white rounded-xl font-medium hover:shadow-md transition-all duration-200 flex items-center gap-2"
     >
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
       </svg>
       Requests
       {requestCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+        <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
           {requestCount}
         </span>
       )}
@@ -176,7 +176,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50/30 via-white to-accent-50/30 flex">
       {/* Friend List Sidebar */}
       <FriendList
         isOpen={showFriends}
@@ -237,14 +237,14 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col bg-gray-50">
         {/* Header */}
-        <header className="bg-white shadow-md border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+        <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-primary-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-lg">
               {user?.real_name?.charAt(0) || 'B'}
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
-                Beyond Binary
+                Harbour
               </h1>
               <p className="text-xs text-gray-500">Welcome back, {user?.real_name}</p>
             </div>
@@ -254,7 +254,7 @@ export default function DashboardPage() {
             <FriendRequestButton onOpenFriends={() => setShowFriends(true)} />
             <button
               onClick={() => setShowFriends(!showFriends)}
-              className="px-5 py-2.5 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+              className="px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium hover:shadow-md transition-all duration-200 flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -263,7 +263,7 @@ export default function DashboardPage() {
             </button>
             <Link
               href="/profile/edit"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 text-sm font-medium transition-all"
+              className="px-4 py-2 bg-primary-50 text-primary-700 rounded-xl hover:bg-primary-100 text-sm font-medium transition-all border border-primary-100"
             >
               Edit Profile
             </Link>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
                 sessionStorage.removeItem('token');
                 router.push('/');
               }}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 text-sm font-medium transition-all"
+              className="px-4 py-2 bg-primary-50 text-primary-700 rounded-xl hover:bg-primary-100 text-sm font-medium transition-all border border-primary-100"
             >
               Logout
             </button>
@@ -281,54 +281,54 @@ export default function DashboardPage() {
         </header>
 
         {/* Feature Tabs - In-page navigation */}
-        <div className="sticky top-0 z-20 px-6 pt-3 pb-2 bg-white/95 backdrop-blur border-b border-gray-100">
+        <div className="sticky top-0 z-20 px-6 pt-3 pb-2 bg-white/80 backdrop-blur-sm border-b border-primary-100">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setActiveTab('babyJourney')}
-              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+              className={`px-4 py-2 text-sm rounded-full font-medium transition-all border ${
                 activeTab === 'babyJourney'
-                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white border-primary-500 shadow-sm'
+                  : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50 hover:border-primary-300'
               }`}
             >
               Baby Journey
             </button>
             <button
               onClick={() => setActiveTab('chat')}
-              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+              className={`px-4 py-2 text-sm rounded-full font-medium transition-all border ${
                 activeTab === 'chat'
-                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white border-primary-500 shadow-sm'
+                  : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50 hover:border-primary-300'
               }`}
             >
               Anonymous Chat
             </button>
             <button
               onClick={() => setActiveTab('map')}
-              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+              className={`px-4 py-2 text-sm rounded-full font-medium transition-all border ${
                 activeTab === 'map'
-                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white border-primary-500 shadow-sm'
+                  : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50 hover:border-primary-300'
               }`}
             >
               Presence Map
             </button>
             <button
               onClick={() => setActiveTab('journal')}
-              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+              className={`px-4 py-2 text-sm rounded-full font-medium transition-all border ${
                 activeTab === 'journal'
-                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white border-primary-500 shadow-sm'
+                  : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50 hover:border-primary-300'
               }`}
             >
               Journal
             </button>
             <button
               onClick={() => setActiveTab('habits')}
-              className={`px-4 py-2 text-sm rounded-full font-semibold transition-all border ${
+              className={`px-4 py-2 text-sm rounded-full font-medium transition-all border ${
                 activeTab === 'habits'
-                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white border-primary-500 shadow-sm'
+                  : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50 hover:border-primary-300'
               }`}
             >
               Habits
@@ -355,7 +355,7 @@ export default function DashboardPage() {
       {/* Bottom-right hotline button */}
       <a
         href="tel:+6599990000"
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white text-sm font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 text-white text-sm font-medium shadow-md hover:shadow-lg hover:scale-105 transition-all"
       >
         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/20">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

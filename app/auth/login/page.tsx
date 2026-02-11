@@ -48,16 +48,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center gradient-soft px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-soft p-8 md:p-10 border border-gray-100">
+      <div className="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-2xl shadow-sm p-8 md:p-10 border border-primary-100">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2">
             Welcome Back
           </h1>
-          <p className="text-gray-600">Sign in to continue your journey</p>
+          <p className="text-primary-700">Sign in to continue your journey</p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg mb-6 shadow-sm">
+          <div className="bg-primary-50 border-l-4 border-primary-500 text-primary-800 px-4 py-3 rounded-lg mb-6 shadow-sm">
             <div className="flex items-center">
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -69,7 +69,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-primary-800 mb-2">
               Email Address
             </label>
             <input
@@ -78,13 +78,13 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
+              className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all outline-none text-primary-900 bg-white"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-primary-800 mb-2">
               Password
             </label>
             <input
@@ -93,7 +93,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none text-gray-900"
+              className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all outline-none text-primary-900 bg-white"
               placeholder="••••••••"
             />
           </div>
@@ -107,7 +107,7 @@ export default function LoginPage() {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded cursor-pointer"
               />
-              <label htmlFor="remember" className="ml-2 block text-sm text-gray-700 cursor-pointer">
+              <label htmlFor="remember" className="ml-2 block text-sm text-primary-700 cursor-pointer">
                 Remember me (30 days)
               </label>
             </div>
@@ -136,9 +136,9 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-primary-700">
             Don't have an account?{' '}
-            <Link href="/auth/signup" className="font-semibold text-primary-600 hover:text-primary-700 transition">
+            <Link href="/auth/signup" className="font-medium text-primary-600 hover:text-primary-700 transition">
               Create one now
             </Link>
           </p>

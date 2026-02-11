@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Beyond Binary - Women's Anonymous Chat",
+  title: "Harbour - Women's Anonymous Chat",
   description: "A safe space for women in Singapore to connect anonymously",
 };
 

@@ -1,4 +1,4 @@
-# Beyond Binary - Women's Anonymous Chat & Friendship Platform
+# Harbour - Women's Anonymous Chat & Friendship Platform
 
 A web-based platform enabling women in Singapore to engage in anonymous, topic-based conversations with other verified women, with the option to transition from anonymous chats to lasting friendships.
 

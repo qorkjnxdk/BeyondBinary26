@@ -383,11 +383,11 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
               onChange={(e) => setPrompt(e.target.value)}
               maxLength={280}
               placeholder="e.g., Need advice on dealing with difficult boss, Want to talk about work-life balance, Looking for hiking buddies..."
-              className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none resize-none text-gray-900 placeholder-gray-400"
+              className="w-full px-5 py-4 border border-primary-200 rounded-xl focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all outline-none resize-none text-primary-900 placeholder-primary-400 bg-white"
               rows={4}
             />
             <div className="flex items-center justify-between mt-4">
-              <span className={`text-sm font-medium ${prompt.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
+              <span className={`text-sm font-medium ${prompt.length > 250 ? 'text-primary-600' : 'text-primary-500'}`}>
                 {prompt.length}/280
               </span>
               <button
@@ -428,7 +428,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
               </div>
               <button
                 onClick={leaveMatching}
-                className="ml-4 px-6 py-3 bg-white text-gray-700 rounded-xl hover:bg-gray-50 border-2 border-gray-200 font-medium transition-all shadow-sm hover:shadow"
+                className="ml-4 px-6 py-3 bg-white text-primary-700 rounded-xl hover:bg-primary-50 border border-primary-200 font-medium transition-all shadow-sm hover:shadow"
               >
                 Leave
               </button>
@@ -476,7 +476,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         {isSearching && matches.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">
+              <h3 className="text-2xl font-bold text-primary-900">
                 {matches.length} {matches.length === 1 ? 'Match' : 'Matches'} Found
               </h3>
               <div className="text-sm text-gray-500">Online now</div>

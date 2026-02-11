@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 interface SetupProps {
@@ -14,8 +14,37 @@ export default function BabyJourneySetup({ onClose, onSave }: SetupProps) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [milestoneTrackingEnabled, setMilestoneTrackingEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
+
+  // Load existing settings when component mounts
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const token = getToken();
+        const res = await fetch('/api/baby-journey', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.journey) {
+          if (data.journey.baby_name) setBabyName(data.journey.baby_name);
+          if (data.journey.baby_birth_date) setBirthDate(data.journey.baby_birth_date);
+          if (data.journey.notifications_enabled !== undefined) {
+            setNotificationsEnabled(data.journey.notifications_enabled);
+          }
+          if (data.journey.milestone_tracking_enabled !== undefined) {
+            setMilestoneTrackingEnabled(data.journey.milestone_tracking_enabled);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading settings:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const handleSave = async () => {
     if (!birthDate) {
@@ -52,6 +81,19 @@ export default function BabyJourneySetup({ onClose, onSave }: SetupProps) {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-200 border-t-primary-600 mb-4"></div>
+            <p className="text-gray-600">Loading settings...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

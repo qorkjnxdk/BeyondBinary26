@@ -327,11 +327,11 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-soft p-8 border border-gray-100 mb-6">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2">
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-sm p-8 border border-primary-100 mb-6">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent mb-2">
           Gentle Habit Check-in
         </h2>
-        <p className="text-sm text-gray-600 mb-6">
+          <p className="text-sm text-primary-700 mb-6">
           Small physical check-ins that support your mood. No streaks, no pressure.
         </p>
 
@@ -347,13 +347,13 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
               return (
                 <div
                   key={habit.id}
-                  className="border-2 border-gray-200 rounded-xl overflow-hidden transition-all hover:border-primary-300"
+                  className="border border-primary-200 rounded-xl overflow-hidden transition-all hover:border-primary-300 shadow-sm"
                 >
                   {/* Main habit row */}
                   <div className="flex items-center justify-between p-4 bg-white">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
-                        <span className="text-sm font-semibold text-gray-800">
+                        <span className="text-sm font-medium text-primary-900">
                           {habit.label}
                         </span>
                         {habit.completed && (
@@ -362,7 +362,7 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 italic">
+                      <p className="text-xs text-primary-600 italic">
                         {socialContext}
                       </p>
                     </div>
@@ -375,7 +375,7 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
                         className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold transition-all ${
                           habit.completed
                             ? 'bg-green-500 text-white'
-                            : 'bg-gray-100 text-gray-500 hover:bg-primary-100 hover:text-primary-600'
+                            : 'bg-primary-50 text-primary-400 hover:bg-primary-100 hover:text-primary-600'
                         }`}
                       >
                         {savingId === habit.id ? '...' : habit.completed ? '✓' : '+'}
@@ -384,7 +384,7 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
                       {/* Expand button */}
                       <button
                         onClick={() => toggleExpanded(habit.id)}
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-primary-400 hover:bg-primary-100 hover:text-primary-600 transition-all"
                       >
                         <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
                           ▼
@@ -395,9 +395,9 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
 
                   {/* Historical view (expandable) */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 animate-fadeIn">
+                    <div className="px-4 pb-4 bg-primary-50/50 border-t border-primary-200 animate-fadeIn">
                       <div className="pt-3">
-                        <p className="text-xs font-medium text-gray-600 mb-3">Past 7 days (not including today)</p>
+                        <p className="text-xs font-medium text-primary-700 mb-3">Past 7 days (not including today)</p>
                         <div className="grid grid-cols-7 gap-1">
                           {history.map((log) => {
                             return (
@@ -409,12 +409,12 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
                                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                                     log.completed
                                       ? 'bg-primary-500 text-white'
-                                      : 'bg-gray-200 text-gray-400'
+                                      : 'bg-primary-100 text-primary-300'
                                   }`}
                                 >
                                   {log.completed ? '✓' : '·'}
                                 </div>
-                                <span className="text-xs text-gray-500 text-center">
+                                <span className="text-xs text-primary-600 text-center">
                                   {getDayLabel(log.date)}
                                 </span>
                               </div>
@@ -433,14 +433,14 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
 
       {/* Gentle Insight */}
       {insight && !loading && (
-        <div className="bg-gradient-to-br from-primary-50 to-accent-50 rounded-2xl shadow-soft p-6 border border-primary-100">
+        <div className="bg-gradient-to-br from-primary-50/80 to-accent-50/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-primary-200">
           <div className="flex items-start gap-3">
             <span className="text-2xl">💝</span>
             <div>
-              <h3 className="text-sm font-semibold text-gray-800 mb-1">
+              <h3 className="text-sm font-medium text-primary-900 mb-1">
                 A gentle reminder
               </h3>
-              <p className="text-sm text-gray-700 leading-relaxed">
+              <p className="text-sm text-primary-700 leading-relaxed">
                 {insight}
               </p>
             </div>

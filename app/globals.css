@@ -2,19 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #1f2937;
+  --background: #fefbfb;
+  --foreground: #2d1b1f;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 }
 
 @layer utilities {
@@ -23,11 +25,15 @@ body {
   }
   
   .gradient-primary {
-    background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+    background: linear-gradient(135deg, #fb7185 0%, #ec4899 100%);
   }
   
   .gradient-soft {
-    background: linear-gradient(135deg, #fdf2f8 0%, #faf5ff 100%);
+    background: linear-gradient(135deg, #fef2f2 0%, #fdf2f8 100%);
+  }
+  
+  .gradient-warm {
+    background: linear-gradient(135deg, #fee2e2 0%, #fce7f3 100%);
   }
   
   .card-hover {
@@ -35,11 +41,11 @@ body {
   }
   
   .btn-primary {
-    @apply bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg hover:from-primary-700 hover:to-primary-800 transition-all duration-200 active:scale-95;
+    @apply bg-gradient-to-r from-primary-500 to-accent-500 text-white font-medium py-3 px-6 rounded-xl shadow-sm hover:shadow-md hover:from-primary-600 hover:to-accent-600 transition-all duration-200 active:scale-95;
   }
   
   .btn-secondary {
-    @apply bg-white text-primary-700 font-semibold py-3 px-6 rounded-xl border-2 border-primary-300 hover:border-primary-500 hover:bg-primary-50 transition-all duration-200 active:scale-95 shadow-sm;
+    @apply bg-white text-primary-600 font-medium py-3 px-6 rounded-xl border border-primary-200 hover:border-primary-400 hover:bg-primary-50 transition-all duration-200 active:scale-95 shadow-sm;
   }
 }
 

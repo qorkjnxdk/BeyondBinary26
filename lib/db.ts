@@ -367,9 +367,7 @@ function seedStageContent() {
         "Raises head and chest during tummy time",
         "Tracks objects with eyes, less eye crossing",
         "Opens and shuts hands, brings hands to mouth",
-        "Grips objects in their hands",
-        "Takes swipes at dangling objects",
-        "Begins cooing and making vowel sounds"
+        "Grips objects in their hands"
       ]),
       challenges: JSON.stringify([
         "6-week sleep regression (growth spurts disrupt sleep)",
@@ -377,18 +375,14 @@ function seedStageContent() {
         "Colic peaks (crying 3+ hours/day, usually improves by 3-4 months)",
         "Overstimulation (baby can't self-regulate yet)",
         "Feeling 'touched out' from constant holding/feeding",
-        "Postpartum anxiety often peaks around 6-8 weeks",
-        "Uncertainty about cues (Is she hungry? Tired? Overstimulated?)",
-        "Loss of autonomy (can't put baby down, trapped under baby)"
+        "Postpartum anxiety often peaks around 6-8 weeks"
       ]),
       look_forward: JSON.stringify([
         "First real smile directed at YOU (game-changer!)",
         "More alert, awake periods for interaction",
         "Beginning to self-soothe (hand to mouth)",
         "Longer nighttime sleep stretches (4-6 hours for some)",
-        "More predictable feeding rhythms emerging",
-        "Stronger neck control (easier to hold and carry)",
-        "Baby recognizing and lighting up for you"
+        "More predictable feeding rhythms emerging"
       ]),
       journal_prompts: JSON.stringify([
         "When did you first see a real smile?",
