@@ -66,6 +66,10 @@ npm run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+   
+6. If Signing Up fails for whatever reason, feel free to play around with these two profiles
+- Username: sr@gmail.com / Password: Password123
+- Username: sr10@gmail.com / Password: Password123
 
 ## Project Structure
 
