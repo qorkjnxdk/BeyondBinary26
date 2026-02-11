@@ -398,7 +398,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               maxLength={280}
-              placeholder="e.g., Need advice on dealing with difficult boss, Want to talk about work-life balance, Looking for hiking buddies..."
+              placeholder="e.g., Struggling with sleepless nights and need someone to talk to, Looking for tips on breastfeeding, Want to share postpartum recovery experiences..."
               className="w-full px-5 py-4 border border-primary-200 rounded-xl focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all outline-none resize-none text-primary-900 placeholder-primary-400 bg-white"
               rows={4}
             />
