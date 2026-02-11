@@ -21,6 +21,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
   const [isSearching, setIsSearching] = useState(false); // Track if user is in matching mode
   const socketRef = useRef<Socket | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const inviteIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
 
@@ -127,10 +128,26 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
     }
   };
 
+  const startInvitePolling = () => {
+    if (inviteIntervalRef.current) clearInterval(inviteIntervalRef.current);
+    inviteIntervalRef.current = setInterval(() => {
+      loadInvites();
+      checkForActiveSession();
+    }, 3000);
+  };
+
+  const stopInvitePolling = () => {
+    if (inviteIntervalRef.current) {
+      clearInterval(inviteIntervalRef.current);
+      inviteIntervalRef.current = null;
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopAutoRefresh();
+      stopInvitePolling();
     };
   }, []);
 
@@ -298,8 +315,10 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
     loadInvites(); // Initial load
     checkForActiveSession(); // Check immediately
 
+    // Always poll for invites since socket events may not work reliably
+    startInvitePolling();
+
     let mounted = true;
-    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
 
     async function setupSocket() {
       try {
@@ -308,7 +327,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
 
         socketRef.current = socket;
 
-        // Listen for incoming invites
+        // Listen for incoming invites (instant delivery when sockets work)
         socket.on('invite-received', (invite: any) => {
           if (!mounted) return;
           setInvites((prev) => {
@@ -345,11 +364,8 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
           checkForActiveSession();
         });
       } catch (error) {
-        toast.error('Connection issue, falling back to polling');
-        fallbackInterval = setInterval(() => {
-          loadInvites();
-          checkForActiveSession();
-        }, 3000);
+        // Socket failed but polling is already running
+        console.error('Socket connection failed, relying on polling:', error);
       }
     }
 
@@ -357,7 +373,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
 
     return () => {
       mounted = false;
-      if (fallbackInterval) clearInterval(fallbackInterval);
+      stopInvitePolling();
       const socket = socketRef.current;
       if (socket) {
         socket.off('invite-received');
