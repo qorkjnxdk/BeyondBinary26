@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 interface Friend {
   userId: string;
@@ -34,6 +35,7 @@ export default function FriendList({
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState<{ friendId: string; friendName: string } | null>(null);
 
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
 
@@ -59,31 +61,34 @@ export default function FriendList({
         setFriends(data.friends);
       }
     } catch (error) {
-      console.error('Error loading friends:', error);
+      toast.error('Error loading friends');
     }
   };
 
   const handleRemoveFriend = async (friendId: string, friendName: string) => {
-    const confirmed = window.confirm(`Remove ${friendName} as a friend? This will also delete your chat history with her.`);
-    if (!confirmed) return;
+    setConfirmRemove({ friendId, friendName });
+  };
+
+  const confirmRemoveFriend = async () => {
+    if (!confirmRemove) return;
 
     try {
-      const response = await fetch(`/api/friends?friendId=${encodeURIComponent(friendId)}`, {
+      const response = await fetch(`/api/friends?friendId=${encodeURIComponent(confirmRemove.friendId)}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${getToken()}` },
       });
       const data = await response.json();
       if (!response.ok) {
-        console.error('Failed to remove friend:', data);
-        alert(data.error || 'Failed to remove friend');
+        toast.error(data.error || 'Failed to remove friend');
         return;
       }
       // Refresh friends + unread counts
       loadFriends();
       loadUnreadCounts();
+      toast.success(`Removed ${confirmRemove.friendName} from friends`);
+      setConfirmRemove(null);
     } catch (error) {
-      console.error('Error removing friend:', error);
-      alert('An error occurred while removing friend. Please try again.');
+      toast.error('An error occurred while removing friend. Please try again.');
     }
   };
 
@@ -97,7 +102,7 @@ export default function FriendList({
         setFriendRequests(data.requests);
       }
     } catch (error) {
-      console.error('Error loading friend requests:', error);
+      toast.error('Error loading friend requests');
     }
   };
 
@@ -111,7 +116,7 @@ export default function FriendList({
         setUnreadCounts(data.unreadCounts);
       }
     } catch (error) {
-      console.error('Error loading unread counts:', error);
+      toast.error('Error loading unread counts');
     }
   };
 
@@ -135,11 +140,10 @@ export default function FriendList({
         loadFriends();
         loadFriendRequests();
       } else {
-        alert(data.error || 'Failed to accept friend request');
+        toast.error(data.error || 'Failed to accept friend request');
       }
     } catch (error) {
-      console.error('Error accepting friend request:', error);
-      alert('An error occurred while accepting friend request');
+      toast.error('An error occurred while accepting friend request');
     }
   };
 
@@ -162,11 +166,10 @@ export default function FriendList({
         loadFriendRequests();
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to decline friend request');
+        toast.error(data.error || 'Failed to decline friend request');
       }
     } catch (error) {
-      console.error('Error declining friend request:', error);
-      alert('An error occurred while declining friend request');
+      toast.error('An error occurred while declining friend request');
     }
   };
 
@@ -350,6 +353,32 @@ export default function FriendList({
           )}
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      {confirmRemove && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Friend</h3>
+            <p className="text-gray-700 mb-4">
+              Remove {confirmRemove.friendName} as a friend? This will also delete your chat history with her.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-medium transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemoveFriend}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-all"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

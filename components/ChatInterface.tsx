@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 import { initializeSocket } from '@/lib/socket';
 import type { Socket } from 'socket.io-client';
 
@@ -80,7 +81,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
               if (update.deniedBy !== user.user_id) {
                 setEarlyExitRequested(false);
                 setEarlyExitApproval(null);
-                alert('Your early exit request was denied. A penalty has been applied.');
+                toast.error('Your early exit request was denied. A penalty has been applied.');
               }
               break;
           }
@@ -104,7 +105,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
           loadMessages();
         });
       } catch (error) {
-        console.error('Failed to initialize socket, falling back to polling:', error);
+        toast.error('Connection issue, falling back to polling');
         fallbackInterval = setInterval(loadMessages, 2000);
       }
     }
@@ -197,7 +198,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         setFriendRequestSent(true);
       }
     } catch (error) {
-      console.error('Error loading messages:', error);
+      toast.error('Error loading messages');
     }
   };
 
@@ -238,7 +239,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       // Real message arrives via socket 'new-message' event and replaces optimistic
     } catch (error) {
       setMessages((prev) => prev.filter((m) => m.message_id !== optimisticId));
-      console.error('Error sending message:', error);
+      toast.error('Error sending message');
     }
   };
 
@@ -267,12 +268,11 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         console.log('[ChatInterface] Friend request response:', data);
         
         if (!response.ok) {
-          console.error('[ChatInterface] Friend request failed:', data);
-          alert(data.error || 'Failed to send friend request');
+          toast.error(data.error || 'Failed to send friend request');
           return;
         }
 
-        alert('Friend request sent! They will need to accept it.');
+        toast.success('Friend request sent! They will need to accept it.');
         
         // Update session to track friend request before ending
         await fetch('/api/chat', {
@@ -290,8 +290,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
         // End the chat after sending friend request
         await endChat(false);
       } catch (error) {
-        console.error('Error sending friend request:', error);
-        alert('An error occurred while sending friend request. Please try again.');
+        toast.error('An error occurred while sending friend request. Please try again.');
       }
     } else if (action === 'continue') {
       // Request to continue - check if mutual
@@ -343,13 +342,12 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       console.log('[ChatInterface] Friend request response:', data);
       
       if (!response.ok) {
-        console.error('[ChatInterface] Friend request failed:', data);
-        alert(data.error || 'Failed to send friend request');
+        toast.error(data.error || 'Failed to send friend request');
         return;
       }
 
       setFriendRequestSent(true);
-      alert('Friend request sent! They will need to accept it.');
+      toast.success('Friend request sent! They will need to accept it.');
       
       // Update session to track friend request
       const chatResponse = await fetch('/api/chat', {
@@ -365,13 +363,12 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       });
       
       if (!chatResponse.ok) {
-        console.error('[ChatInterface] Failed to update chat session with friend request');
+        toast.error('Failed to update chat session with friend request');
       }
       
       // Don't end the chat - they can continue talking
     } catch (error) {
-      console.error('Error sending friend request:', error);
-      alert('An error occurred while sending friend request. Please try again.');
+      toast.error('An error occurred while sending friend request. Please try again.');
     }
   };
 
@@ -391,15 +388,13 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       });
       const data = await response.json();
       if (!response.ok) {
-        console.error('[ChatInterface] Failed to accept friend request in chat:', data);
-        alert(data.error || 'Failed to accept friend request');
+        toast.error(data.error || 'Failed to accept friend request');
         return;
       }
       setIncomingFriendRequest(null);
-      alert(`You are now friends with ${incomingFriendRequest.senderName}.`);
+      toast.success(`You are now friends with ${incomingFriendRequest.senderName}.`);
     } catch (error) {
-      console.error('Error accepting friend request in chat:', error);
-      alert('An error occurred. Please try again.');
+      toast.error('An error occurred. Please try again.');
     }
   };
 
@@ -455,7 +450,7 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       setEarlyExitApproval(null);
       // If penalty was applied, show message
       if (data.penaltyApplied) {
-        alert('The other user has been penalized for requesting early exit.');
+        toast('The other user has been penalized for requesting early exit.');
       }
     }
   };
@@ -511,14 +506,6 @@ export default function ChatInterface({ session, user, onChatEnd }: ChatInterfac
       {/* Header */}
       <header className="bg-white shadow-md border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => onChatEnd()}
-            className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100 transition-all"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white font-bold">
             {otherUserName.charAt(0)}
           </div>

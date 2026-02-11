@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 interface Milestone {
   milestone_id: string;
@@ -36,7 +37,9 @@ export default function MilestoneTracker({ stage, onMilestoneUpdate }: Milestone
           setMilestones(data.milestones);
         }
       })
-      .catch(console.error)
+      .catch((error) => {
+        toast.error('Error loading milestones');
+      })
       .finally(() => setLoading(false));
   };
 
@@ -70,7 +73,7 @@ export default function MilestoneTracker({ stage, onMilestoneUpdate }: Milestone
         }
       }
     } catch (e) {
-      console.error(e);
+      toast.error('Error updating milestone');
     }
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 interface Notification {
   id: string;
@@ -93,7 +94,7 @@ export default function Notifications({ isOpen, onClose, onSelectFriend, onSelec
       notifs.sort((a, b) => b.timestamp - a.timestamp);
       setNotifications(notifs);
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      toast.error('Error loading notifications');
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -71,15 +72,15 @@ export default function EditProfilePage() {
       });
 
       if (response.ok) {
-        alert('Profile updated successfully!');
+        toast.success('Profile updated successfully!');
         router.push('/dashboard');
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to update profile');
+        toast.error(data.error || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('An error occurred while updating profile');
+      toast.error('An error occurred while updating profile');
     } finally {
       setSaving(false);
     }
@@ -421,7 +422,7 @@ export default function EditProfilePage() {
                               hobbyInput: '',
                             });
                           } else {
-                            alert('Hobby must be 30 characters or less');
+                            toast.error('Hobby must be 30 characters or less');
                           }
                         }
                       }
@@ -441,7 +442,7 @@ export default function EditProfilePage() {
                             hobbyInput: '',
                           });
                         } else {
-                          alert('Hobby must be 30 characters or less');
+                          toast.error('Hobby must be 30 characters or less');
                         }
                       }
                     }}

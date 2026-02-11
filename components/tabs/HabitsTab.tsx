@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import type { HabitType } from '@/lib/habits';
 
 interface HabitSummary {
@@ -284,7 +285,7 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
       });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || 'Failed to log habit');
+        toast.error(data.error || 'Failed to log habit');
       } else {
         loadHabits();
         // For demo: adjust the social count for this habit based on new completion state
@@ -303,8 +304,7 @@ export default function HabitsTab({ isActive }: HabitsTabProps) {
         });
       }
     } catch (e) {
-      console.error(e);
-      alert('Error logging habit');
+      toast.error('Error logging habit');
     } finally {
       setSavingId(null);
     }

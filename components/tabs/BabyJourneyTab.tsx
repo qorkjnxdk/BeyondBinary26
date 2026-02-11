@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import BabyJourneyTimeline from '@/components/BabyJourneyTimeline';
 import StageCard from '@/components/StageCard';
 import BabyJourneySetup from '@/components/BabyJourneySetup';
@@ -62,7 +63,9 @@ export default function BabyJourneyTab({ isActive }: BabyJourneyTabProps) {
           }
         }
       })
-      .catch(console.error)
+      .catch((error) => {
+        toast.error('Error loading baby journey');
+      })
       .finally(() => setLoading(false));
   };
 

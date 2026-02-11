@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import JournalResponse from '@/components/JournalResponse';
 import SentimentTrends from '@/components/SentimentTrends';
 
@@ -139,11 +140,10 @@ export default function JournalTab({ isActive }: JournalTabProps) {
           setEntries([data.entry, ...entries]);
         }
       } else {
-        alert(data.error || 'Failed to save entry');
+        toast.error(data.error || 'Failed to save entry');
       }
     } catch (e) {
-      console.error(e);
-      alert('Error saving entry');
+      toast.error('Error saving entry');
     } finally {
       setSaving(false);
     }
@@ -223,11 +223,10 @@ export default function JournalTab({ isActive }: JournalTabProps) {
           }));
         }
       } else {
-        alert(data.error || 'Failed to update entry');
+        toast.error(data.error || 'Failed to update entry');
       }
     } catch (e) {
-      console.error(e);
-      alert('Error updating entry');
+      toast.error('Error updating entry');
     } finally {
       setUpdating(false);
     }
@@ -249,11 +248,10 @@ export default function JournalTab({ isActive }: JournalTabProps) {
       if (res.ok && data.success) {
         setEntries(entries.filter(e => e.entry_id !== entryId));
       } else {
-        alert(data.error || 'Failed to delete entry');
+        toast.error(data.error || 'Failed to delete entry');
       }
     } catch (e) {
-      console.error(e);
-      alert('Error deleting entry');
+      toast.error('Error deleting entry');
     }
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { initializeSocket } from '@/lib/socket';
 import type { Socket } from 'socket.io-client';
 
@@ -63,7 +64,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         startAutoRefresh();
       }
     } catch (error) {
-      console.error('Error checking matching status:', error);
+      toast.error('Error checking matching status');
     }
   };
 
@@ -101,7 +102,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         setMatches(data.matches);
       }
     } catch (error) {
-      console.error('Error refreshing matches:', error);
+      toast.error('Error refreshing matches');
     }
   };
 
@@ -122,7 +123,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
       localStorage.removeItem('currentPrompt');
       stopAutoRefresh();
     } catch (error) {
-      console.error('Error leaving matching mode:', error);
+      toast.error('Error leaving matching mode');
     }
   };
 
@@ -135,7 +136,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
 
   const findMatches = async () => {
     if (!prompt.trim()) {
-      alert('Please enter a prompt to find matches.');
+      toast.error('Please enter a prompt to find matches.');
       return;
     }
     
@@ -145,7 +146,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
     try {
       const token = getToken();
       if (!token) {
-        alert('You must be logged in to find matches.');
+        toast.error('You must be logged in to find matches.');
         setLoading(false);
         return;
       }
@@ -162,8 +163,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
       const data = await response.json();
       
       if (!response.ok) {
-        console.error('Error finding matches:', data.error, data.details);
-        alert(data.error || data.details || 'Failed to find matches. Please try again.');
+        toast.error(data.error || data.details || 'Failed to find matches. Please try again.');
         setLoading(false);
         return;
       }
@@ -184,8 +184,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         setMatches([]);
       }
     } catch (error: any) {
-      console.error('Error finding matches:', error);
-      alert(`An error occurred while finding matches: ${error.message || 'Unknown error'}. Please try again.`);
+      toast.error(`An error occurred while finding matches: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -210,7 +209,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         loadInvites();
       }
     } catch (error) {
-      console.error('Error sending invite:', error);
+      toast.error('Error sending invite');
     }
   };
 
@@ -224,7 +223,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         setInvites(data.invites);
       }
     } catch (error) {
-      console.error('Error loading invites:', error);
+      toast.error('Error loading invites');
     }
   };
 
@@ -245,8 +244,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
       const data = await response.json();
       
       if (!response.ok) {
-        console.error('Error accepting invite:', data.error || 'Unknown error');
-        alert(data.error || 'Failed to accept invite. Please try again.');
+        toast.error(data.error || 'Failed to accept invite. Please try again.');
         return;
       }
 
@@ -255,12 +253,10 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         await leaveMatching();
         onMatchAccepted(data.session);
       } else {
-        console.error('No session returned from accept invite');
-        alert('Failed to start chat. Please try again.');
+        toast.error('Failed to start chat. Please try again.');
       }
     } catch (error) {
-      console.error('Error accepting invite:', error);
-      alert('An error occurred. Please try again.');
+      toast.error('An error occurred. Please try again.');
     }
   };
 
@@ -279,7 +275,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
       });
       loadInvites();
     } catch (error) {
-      console.error('Error declining invite:', error);
+      toast.error('Error declining invite');
     }
   };
 
@@ -294,7 +290,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
         onMatchAccepted(data.session);
       }
     } catch (error) {
-      console.error('Error checking for active session:', error);
+      toast.error('Error checking for active session');
     }
   };
 
@@ -349,7 +345,7 @@ export default function MatchInterface({ onMatchAccepted }: { onMatchAccepted: (
           checkForActiveSession();
         });
       } catch (error) {
-        console.error('Failed to initialize socket, falling back to polling:', error);
+        toast.error('Connection issue, falling back to polling');
         fallbackInterval = setInterval(() => {
           loadInvites();
           checkForActiveSession();

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'In a Relationship', "It's Complicated"];
 const employmentTypes = ['Employed Full-time', 'Employed Part-time', 'Self-employed', 'Unemployed', 'Student', 'Retired', 'Homemaker'];
@@ -190,7 +191,7 @@ export default function SignupPage() {
       });
 
       if (!profileResponse.ok) {
-        console.error('Failed to update profile');
+        toast.error('Failed to update profile');
       }
 
       router.push('/dashboard');

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 interface TrendData {
@@ -46,7 +47,6 @@ export default function SentimentTrends() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Trends API error:', errorData);
         throw new Error('Failed to fetch trends');
       }
 
@@ -56,7 +56,7 @@ export default function SentimentTrends() {
 
       setTrendsData(result);
     } catch (err) {
-      console.error('Error fetching trends:', err);
+      toast.error('Failed to load trends');
       setError('Failed to load trends');
     } finally {
       setLoading(false);

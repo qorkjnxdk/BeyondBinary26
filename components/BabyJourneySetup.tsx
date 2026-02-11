@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 interface SetupProps {
   onClose: () => void;
@@ -18,7 +19,7 @@ export default function BabyJourneySetup({ onClose, onSave }: SetupProps) {
 
   const handleSave = async () => {
     if (!birthDate) {
-      alert('Please enter your baby\'s birth date');
+      toast.error('Please enter your baby\'s birth date');
       return;
     }
 
@@ -43,11 +44,10 @@ export default function BabyJourneySetup({ onClose, onSave }: SetupProps) {
       if (res.ok) {
         onSave();
       } else {
-        alert(data.error || 'Failed to save settings');
+        toast.error(data.error || 'Failed to save settings');
       }
     } catch (e) {
-      console.error(e);
-      alert('Error saving settings');
+      toast.error('Error saving settings');
     } finally {
       setSaving(false);
     }
