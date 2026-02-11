@@ -40,7 +40,7 @@ cd BeyondBinary26
 npm install
 ```
 
-3. Create a `.env.local` file and input your Gemini API Key:
+3. Create a `.env.local` file in folder root and input your Gemini API Key:
 ```
 GEMINI_API_KEY=your-gemini-api-key-here
 ```
