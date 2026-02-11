@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { singaporeLatLng} from "@/lib/singaporeLatLng";
 
 interface PresenceEntry {
@@ -198,6 +198,11 @@ export default function PresenceMap() {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
+  // Refs to track previous data hashes (persist across renders)
+  const previousFriendsHashRef = useRef<string>('');
+  const previousEveryoneHashRef = useRef<string>('');
+  const isInitialLoadRef = useRef(true);
+
   useEffect(() => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -208,43 +213,99 @@ export default function PresenceMap() {
 
     const headers = { Authorization: `Bearer ${token}` };
 
+    let isMounted = true;
+
+    // Create a stable hash for data comparison (inside effect to avoid dependency)
+    // Sort by userId first to ensure consistent ordering
+    const createDataHash = (data: any[]) => {
+      const sorted = [...data].sort((a, b) => (a.userId || '').localeCompare(b.userId || ''));
+      return sorted.map(u => `${u.userId}:${u.online ? '1' : '0'}:${u.location || ''}`).join('|');
+    };
+
     const load = async () => {
       try {
-        setLoading(true);
+        // Only show loading on initial load
+        if (isInitialLoadRef.current) {
+          setLoading(true);
+          isInitialLoadRef.current = false;
+        }
 
         const [friendsRes, everyoneRes] = await Promise.all([
           fetch("/api/friends", { headers }).then(r => r.json()),
           fetch("/api/presence", { headers }).then(r => r.json()),
         ]);
 
-        setFriends(friendsRes.friends || []);
-        setEveryone(everyoneRes.presence || []);
+        if (!isMounted) return;
 
+        const newFriends = friendsRes.friends || [];
+        const newEveryone = everyoneRes.presence || [];
+
+        // Create hashes for comparison
+        const newFriendsHash = createDataHash(newFriends);
+        const newEveryoneHash = createDataHash(newEveryone);
+
+        // Only update state if data actually changed (prevents unnecessary re-renders)
+        if (newFriendsHash !== previousFriendsHashRef.current) {
+          setFriends(newFriends);
+          previousFriendsHashRef.current = newFriendsHash;
+        }
+
+        if (newEveryoneHash !== previousEveryoneHashRef.current) {
+          setEveryone(newEveryone);
+          previousEveryoneHashRef.current = newEveryoneHash;
+        }
+
+      } catch (error) {
+        console.error('Error loading presence data:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     load();
 
     const interval = setInterval(load, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
 
   }, []);
 
-  const source = scope === "friends" ? friends : everyone;
+  // Memoize friends set for O(1) lookup
+  const friendsSet = useMemo(() => {
+    return new Set(friends.map((f: any) => f.userId));
+  }, [friends]);
 
-  const filtered = source.filter((u: any) => {
+  // Helper to check if a user is in friends list (memoized)
+  const isFriend = useCallback((userId: string) => {
+    return friendsSet.has(userId);
+  }, [friendsSet]);
 
-    if (!u.location) return false;
+  // Memoize source to prevent recalculation
+  const source = useMemo(() => {
+    return scope === "friends" ? friends : everyone;
+  }, [scope, friends, everyone]);
 
-    if (!singaporeLatLng[u.location]) return false;
+  // Memoize filtered array to prevent recalculation
+  const filtered = useMemo(() => {
+    return source.filter((u: any) => {
+      if (!u.location) return false;
+      if (!singaporeLatLng[u.location]) return false;
+      if (status === "online") return u.online;
+      return true;
+    });
+  }, [source, status]);
 
-    if (status === "online") return u.online;
+  // Memoize online count
+  const onlineCount = useMemo(() => {
+    return filtered.filter((u: any) => u.online).length;
+  }, [filtered]);
 
-    return true;
-
-  });
+  // Memoize selected user ID to prevent unnecessary recalculations
+  const selectedUserId = useMemo(() => selectedUser?.userId || null, [selectedUser?.userId]);
 
   return (
     <div className="bg-white rounded-3xl shadow-soft p-6 border border-gray-100">
@@ -256,7 +317,7 @@ export default function PresenceMap() {
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-400 to-accent-400 flex items-center justify-center text-white font-bold text-sm">
-            {filtered.filter((u:any) => u.online).length}
+            {onlineCount}
           </div>
           <span className="text-[10px] uppercase tracking-wide text-gray-400">Online now</span>
         </div>
@@ -341,6 +402,7 @@ export default function PresenceMap() {
                     if (!coord) return null;
 
                     const { left, top } = latLngToPercent(coord.lat, coord.lng);
+                    const userIsFriend = isFriend(user.userId);
 
                     return (
                         <button
@@ -354,16 +416,16 @@ export default function PresenceMap() {
                               left,
                               top,
                               transform: "translate(-50%, -100%)",
-                              zIndex: selectedUser?.userId === user.userId ? 50 : 10,
+                              zIndex: selectedUserId === user.userId ? 50 : 10,
                             }}
                             className="transition-all hover:scale-105 group"
                         >
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
-                              scope === "friends"
+                              userIsFriend
                                   ? "bg-gradient-to-r from-primary-500 to-accent-500"
                                   : "bg-gradient-to-r from-gray-500 to-gray-700"
                           }`}>
-                            {user.realName?.[0] || "U"}
+                            {userIsFriend ? (user.realName?.[0] || "U") : "?"}
                           </div>
 
                           {user.online && (
@@ -381,6 +443,7 @@ export default function PresenceMap() {
                     if (!coord) return null;
 
                     const { left, top } = latLngToPercent(coord.lat, coord.lng);
+                    const userIsFriend = isFriend(selectedUser.userId);
 
                     return (
                         <div
@@ -396,7 +459,7 @@ export default function PresenceMap() {
                           <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-3 w-48">
 
                             <div className="font-semibold text-gray-900">
-                              {selectedUser.realName}
+                              {userIsFriend ? selectedUser.realName : "Anonymous User"}
                             </div>
 
                             <div className="text-xs text-gray-500">
@@ -408,6 +471,12 @@ export default function PresenceMap() {
                                   ? <span className="text-green-500">● Online</span>
                                   : <span className="text-gray-400">Offline</span>}
                             </div>
+
+                            {!userIsFriend && (
+                              <div className="text-xs text-gray-400 mt-1 italic">
+                                Add as friend to see name
+                              </div>
+                            )}
 
                             <button
                                 onClick={() => setSelectedUser(null)}
